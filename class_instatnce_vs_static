@@ -1,0 +1,65 @@
+*&---------------------------------------------------------------------*
+*& Report ZPRG_USAL_CLASS_TEST
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZPRG_USAL_CLASS_TEST.
+
+PARAMETERS: PVBELN type VBELN_VA.
+Data : p_erdat TYPE erdat.
+Data : p_erzet TYPE erzet.
+Data : p_ernam TYPE ernam.
+Data : p_vbtyp  TYPE VBTYPL.
+
+
+****  **************** instance Method *****************
+
+** Data : lo_object type REF TO ZUSUAL_ABAP_CLASS_29.
+** create OBJECT lo_object.
+
+**CALL METHOD lo_object->display
+**  EXPORTING
+**    pvbeln      = PVBELN
+**  IMPORTING
+**    perdat      = p_erdat
+**    perzet      = p_erzet
+**    pernam      = p_ernam
+**    pvbtyp      = p_vbtyp
+**  EXCEPTIONS
+**    wrong_input = 1
+**    others      = 2
+**        .
+**IF sy-subrc <> 0.
+*** Implement suitable error handling here
+**ENDIF.
+**
+**WRITE  : p_erdat , p_erdat , p_ernam  , p_vbtyp.
+
+
+****************************   static method  *************** **********************
+
+
+
+
+CALL METHOD zusual_abap_class_29=>display_static
+  EXPORTING
+    pvbeln      = PVBELN
+  IMPORTING
+    perdat      = p_erdat
+    perzet      = p_erzet
+    pernam      = p_ernam
+    pvbtyp      = p_vbtyp
+  EXCEPTIONS
+    wrong_input = 1
+    others      = 2
+        .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+   MESSAGE e004(ZMESSAGE).
+  else.
+    write : / p_erdat ,
+     / p_erzet,
+     / p_ernam,
+     /  p_vbtyp.
+
+ENDIF.
