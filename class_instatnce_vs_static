@@ -3,14 +3,24 @@
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
-REPORT ZPRG_USAL_CLASS_TEST.
+REPORT zprg_usal_class_test.
 
-PARAMETERS: PVBELN type VBELN_VA.
-Data : p_erdat TYPE erdat.
-Data : p_erzet TYPE erzet.
-Data : p_ernam TYPE ernam.
-Data : p_vbtyp  TYPE VBTYPL.
+PARAMETERS: pvbeln TYPE vbeln_va.
+DATA : p_erdat TYPE erdat.
+DATA : p_erzet TYPE erzet.
+DATA : p_ernam TYPE ernam.
+DATA : p_vbtyp  TYPE vbtypl.
 
+
+TYPES : BEGIN OF ly_output,
+          erdat   TYPE erdat,
+          erzet TYPE erzet,
+          ernam TYPE ernam,
+          vbtyp TYPE vbtypl,
+        END OF ly_output.
+
+DATA : lt_output TYPE TABLE OF ly_output,
+       ls_output TYPE ly_output.
 
 ****  **************** instance Method *****************
 
@@ -43,7 +53,7 @@ Data : p_vbtyp  TYPE VBTYPL.
 
 CALL METHOD zusual_abap_class_29=>display_static
   EXPORTING
-    pvbeln      = PVBELN
+    pvbeln      = pvbeln
   IMPORTING
     perdat      = p_erdat
     perzet      = p_erzet
@@ -51,15 +61,44 @@ CALL METHOD zusual_abap_class_29=>display_static
     pvbtyp      = p_vbtyp
   EXCEPTIONS
     wrong_input = 1
-    others      = 2
-        .
+    OTHERS      = 2.
 IF sy-subrc <> 0.
 * Implement suitable error handling here
-   MESSAGE e004(ZMESSAGE).
-  else.
-    write : / p_erdat ,
-     / p_erzet,
-     / p_ernam,
-     /  p_vbtyp.
+  MESSAGE e004(zmessage).
+ELSE.
+*  WRITE : / p_erdat ,
+*   / p_erzet,
+*   / p_ernam,
+*   /  p_vbtyp.
 
 ENDIF.
+
+
+    ls_output-erdat   =  p_erdat.
+    ls_output-erzet  =  p_erzet.
+    ls_output-ernam   =  p_ernam.
+    ls_output-vbtyp   =  p_vbtyp.
+
+    APPEND ls_output to lt_output.
+
+
+    data : lo_alv TYPE REF TO cl_salv_table.
+
+    TRY.
+    CALL METHOD cl_salv_table=>factory
+*      EXPORTING
+*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
+*        r_container    =
+*        container_name =
+      IMPORTING
+        r_salv_table   = lo_alv
+      CHANGING
+        t_table        = lt_output
+        .
+    lo_alv->display( ).
+*      CATCH cx_salv_msg.
+
+      CATCH cx_salv_msg INTO DATA(lx_msg).
+            MESSAGE lx_msg->get_text( ) TYPE 'S'.
+
+    ENDTRY.
