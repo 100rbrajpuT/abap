@@ -1,0 +1,15 @@
+  METHOD display.
+
+    SELECT  SINGLE erdat erzet ernam vbtyp
+   FROM vbak INTO  ( pERDAT, pERZET , pERNAM , pVBTYP )
+   WHERE vbeln  = pVBELN.
+
+
+   IF sy-subrc <> 0.
+       RAISE wrong_input.
+   ENDIF.
+
+  ENDMETHOD.
+
+**method which is used in class_instatnce_vs_static, 
+method selection query will be same for both static and instatnce
