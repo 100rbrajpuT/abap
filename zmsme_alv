@@ -1,0 +1,641 @@
+*&---------------------------------------------------------------------*
+*& Report ZRFI_MSME_1
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zrfi_msme_1.
+TABLES : bseg,bkpf,lfa1.
+
+DATA: lt_seltab TYPE STANDARD TABLE OF rsparams             "Note537453
+                  WITH HEADER LINE.
+
+SELECT-OPTIONS : so_lifnr FOR lfa1-lifnr OBLIGATORY,
+                 so_bukrs FOR bseg-bukrs OBLIGATORY,
+                 so_budat FOR bkpf-budat,
+                 so_bldat FOR bkpf-bldat.
+PARAMETERS: p_werks TYPE werks_d,
+            p_gjahr TYPE gjahr.
+
+
+DATA : mv_salv_column TYPE REF TO cl_salv_columns_table,
+       mv_column      TYPE REF TO cl_salv_column,
+       mo_alv         TYPE REF TO cl_salv_table,
+       it_fcat        TYPE lvc_t_fcat,
+       is_fcat        TYPE lvc_s_fcat,
+       lx_msg         TYPE REF TO cx_salv_msg.
+
+*TYPES : BEGIN OF ty_op,
+**            ACTIV
+**            ANLN1
+**            ANLN2
+**            AUFNR
+*            AUGBL  TYPE STRING,
+**            AUGDT
+*          belnr     TYPE string,
+*          blart     TYPE string,
+*          bldat     TYPE string,
+*          bschl     TYPE string,
+*          bstat     TYPE string,
+*          budat     TYPE string,
+*          bukrs     TYPE string,
+**            BUZEI type string,
+*          bwwrt     TYPE string,
+**            BWWR2 type string,
+**            BWWR3 type string,
+**            DMSHB type string,
+**            HWAER type string,
+**            DMBE2 type string,
+**            HWAE2 type string,
+**            DMBE3 type string,
+**            HWAE3 type string,
+*          ebeln     TYPE string,
+*          ebelp     TYPE string,
+**            ETEN2 type string,
+**            FAEDT type string,
+**            FILKD type string,
+*          gjahr     TYPE string,
+*          gsber     TYPE string,
+**            JAMON type string,
+*          koart     TYPE string,
+*          konto     TYPE lifnr,
+*          kostl     TYPE string,
+*
+**            MABER type string,
+**            MADAT type string,
+**            MANSP type string,
+**            MANST type string,
+*          monat     TYPE string,
+**            MSCHL type string,
+*          mwskz     TYPE string,
+**            POSN2 type string,
+*          prctr     TYPE string,
+**            QBSHB type string,
+**            QSFBT type string,
+**            QSSHB type string,
+**            REBZG type string,
+**            SAMNR type string,
+*          sgtxt     TYPE string,
+*          shkzg     TYPE string,
+**            SKFBT type string,
+**            WSKTO type string,
+**            SKNTO type string,
+**            STAKZ type string,
+**            UMSKS type string,
+**            UMSKZ type string,
+**            UZAWE type string,
+**            VALUT type string,
+**            VBEL2 type string,
+*          vbeln     TYPE string,
+**            VBEWA type string,
+**            VBUND type string,
+**            VERTN type string,
+**            VERTT type string,
+**            VERZ1 type string,
+**            VERZN type string,
+*          werks     TYPE string,
+*          wrshb     TYPE string,
+**            WAERS type string,
+**            WVERW type string,
+*          xblnr     TYPE string,
+*          hkont     TYPE string,
+**            XSTRP
+**            XZAHL
+**            ZALDT
+**            ZBD1P
+**            ZBD1T
+**            ZBD2P
+**            ZBD2T
+**            ZBD3T
+**            ZFBDT
+**            ZINSZ
+**            ZLSCH
+**            ZLSPR
+**            ZTERM
+**            ZUONR
+**            XREF1
+**            XREF2
+**            XARCH
+**            RSTGR
+**            ASKTO
+**            KURSE
+**            REBZT
+**            PSWSL
+**            PSWBT
+**            HKONT
+**            XNEGP
+**            ZBFIX
+**            RFZEI
+**            CCBTC
+**            KKBER
+**            XREF3
+**            DTWS1
+**            DTWS2
+**            DTWS3
+**            DTWS4
+**            ABSBT
+**            KKBWR
+**            PROJK
+**            XPYPR
+**            X_DD_PRENOTIF
+**            KIDNO
+**            XAUGP
+**            BUPLA
+**            SECCO
+**            GKART
+**            GKONT
+**            PYCUR
+**            PYAMT
+**            PYORD
+**            XTEXT
+**            TDID
+**            XDUEN
+**            XDUE1
+**            XRAGL
+**            XSELP
+**            COLOR
+**            CESSION_KZ
+**            BUZID
+**            AUGGJ
+**            AGZEI
+**            SYM_AUGP
+**            ICO_AUGP
+**            ICO_DUE
+**            ICO_DUE1
+**            SORT
+**            LONGNUM
+**            RUNID
+**            MNDID
+**            /SAPF15/STATUS
+**            /SAPF15/BEWIRTSCHAFTER
+**            /SAPF15/HAUSHALTSSTELLE
+**            /SAPF15/OBJEKTNUMMER
+**            /SAPF15/BELNR
+**            /SAPF15/VSL
+**            /SAPF15/ZUV
+**            /SAPF15/KASSENZEICHEN
+**            /SAPF15/DATENTRAEGER
+**            /SAPF15/BETRAG
+**            /SAPF15/STATUS_ELKO
+**            /SAPF15/HKR_BETRAG
+**            /SAPF15/HKR_STATUS
+**            /SAPF15/ERSDA
+**            /SAPF15/ERZET
+**            /SAPF15/ERNAM
+**            /SAPF15/LAEDA
+**            /SAPF15/AEZET
+**            /SAPF15/AENAM
+**            EXT_KEY
+**            PROCESSOR
+**            PRIORITY_TEXT
+**            STAT_ORDERNO_TEXT
+**            CDIS_BELNR
+**            PROPMANO
+**            ZGKONT_TEXT
+**            U_BKTXT
+**            U_CPUDT
+**            U_XBLNR_ALT
+**            U_FWBAS
+**            U_HSN_SAC
+**            PRODPER
+*          group_d    TYPE bp_group_d,
+*          group_d_t  TYPE bp_grp_d_t,
+*          legal_org TYPE but000-legal_org,
+*          taxnumxl  TYPE bptaxnumxl,
+*        END OF ty_op.
+
+DATA : it_op TYPE STANDARD TABLE OF ZMSME_STR,
+       s_op  TYPE ZMSME_STR.
+
+START-OF-SELECTION.
+
+  PERFORM get_data.
+
+  PERFORM display_alv.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+
+  DATA :gv_flag.
+  DATA : lr_data TYPE REF TO data.
+  DATA: ls_data TYPE REF TO data.
+  FIELD-SYMBOLS: <lt_data> TYPE STANDARD TABLE.
+
+  cl_salv_bs_runtime_info=>set( display = abap_false
+                                  metadata = abap_false
+                                  data = abap_true ).
+
+  SUBMIT rfitemap WITH kd_lifnr-low = so_lifnr-low
+                  WITH kd_lifnr-high = so_lifnr-high
+                    WITH kd_bukrs-low = so_bukrs-low
+                    WITH kd_bukrs-high = so_bukrs-high
+*                   WITH X_OPSEL = 'X'
+                    WITH x_clsel = 'X'
+*                   WITH PA_STIDA = SY-DATUM
+*                   with SO_AUGDT-LOW = '20211214'
+                    WITH x_norm =  'X'
+                    WITH x_shbv = ''
+                    WITH x_merk = ''
+                    WITH x_park = 'X'
+                    WITH x_apar =  ''
+                      AND RETURN.
+  TRY.
+      CLEAR gv_flag.
+      cl_salv_bs_runtime_info=>get_data_ref(
+      IMPORTING r_data = ls_data ).
+      ASSIGN ls_data->* TO <lt_data>.
+      IF <lt_data> IS ASSIGNED.
+        gv_flag = 'X'.
+      ENDIF.
+    CATCH cx_salv_bs_sc_runtime_info.
+      MESSAGE `Unable to retrieve ALV data` TYPE 'E'.
+  ENDTRY.
+  IF <lt_data> IS ASSIGNED.
+    LOOP AT <lt_data> ASSIGNING FIELD-SYMBOL(<ls_data>).
+      MOVE-CORRESPONDING <ls_data> TO s_op.
+      IF ( s_op-blart = 'RE' OR s_op-blart = 'KR' ).
+
+        APPEND s_op TO iT_op.
+      ENDIF.
+      CLEAR s_op.
+    ENDLOOP.
+  ENDIF.
+
+  IF p_werks IS NOT INITIAL.
+    DELETE it_op WHERE werks <> p_werks.
+  ENDIF.
+
+  IF p_gjahr IS NOT INITIAL.
+    DELETE it_op WHERE gjahr <> p_gjahr.
+  ENDIF.
+
+  IF NOT so_budat[] IS INITIAL.
+    DELETE it_op WHERE budat NOT IN so_budat.
+  ENDIF.
+  IF NOT so_bldat[] IS INITIAL.
+    DELETE it_op WHERE bldat NOT IN so_bldat.
+  ENDIF.
+
+  cl_salv_bs_runtime_info=>set( EXPORTING display  = abap_true
+                                         metadata = abap_true
+                                         data     = abap_true ).
+  IF NOT it_op[] IS INITIAL.
+* * Populate MSME data
+    SELECT partner,group_d
+          FROM bp001
+          INTO TABLE @DATA(lt_bp001)
+          FOR ALL ENTRIES IN @it_op
+          WHERE partner = @it_op-konto.
+    IF lt_bp001[] IS NOT INITIAL.
+      SELECT group_d,group_d_t
+        FROM tp13t
+        INTO TABLE @DATA(lt_tp13t)
+        FOR ALL ENTRIES IN @lt_bp001
+        WHERE group_d = @lt_bp001-group_d.
+
+    ENDIF.
+
+*  get LAega entity
+    SELECT a~partner,a~legal_org,b~textshort,b~textlong
+      INTO TABLE @DATA(lt_000)
+      FROM but000 AS a
+      INNER JOIN tb032t AS b
+      ON a~legal_org = b~legal_org
+      FOR ALL ENTRIES IN @it_op
+      WHERE a~partner = @it_op-konto AND
+            b~spras = @sy-langu.
+
+* Get MSME number
+    SELECT * FROM dfkkbptaxnum INTO TABLE @DATA(lt_tax)
+      FOR ALL ENTRIES IN @it_op
+      WHERE partner = @it_op-konto AND
+            taxtype = 'IN7'.
+
+
+  ENDIF.
+
+* Get ACDOCA/BKPF info
+**  bktxt -- qr code
+*  billno xblnr
+  select a~bukrs,a~belnr,a~bktxt,a~cpudt,a~gjahr,a~REINDAT,b~awref,b~prctr
+    from bkpf as a
+    inner join acdoca as b
+    on a~bukrs = b~rbukrs and
+       a~belnr = b~belnr and
+       a~gjahr = b~gjahr
+    for ALL ENTRIES IN @it_op
+    where a~gjahr = @it_op-gjahr and
+          a~belnr = @it_op-belnr and
+          a~bukrs = @it_op-bukrs
+    into table @data(lt_bkpf).
+
+* Get vendorname
+    select from lfa1
+      FIELDS lifnr,name1,KONZS
+      FOR ALL ENTRIES IN @it_op
+      where lifnr = @it_op-konto
+      into table @data(lt_lfa1).
+
+  data : lt_text type STANDARD TABLE OF TTEXT.
+  LOOP AT it_op ASSIGNING FIELD-SYMBOL(<lfs_op>).
+     <lfs_op>-name1 = value #( lt_lfa1[ lifnr = <lfs_op>-konto ]-name1 OPTIONAL ).
+     <lfs_op>-konzs = value #( lt_lfa1[ lifnr = <lfs_op>-konto ]-konzs OPTIONAL ).
+*    <lfs_op>-group_d = VALUE #( lt_bp001[ partner = <lfs_op>-konto ]-group_d OPTIONAL ).
+     data(lv_gd) = VALUE #( lt_bp001[ partner = <lfs_op>-konto ]-group_d OPTIONAL ).
+    <lfs_op>-group_d_t = VALUE #( lt_tp13t[ group_d = lv_gd ]-group_d_t OPTIONAL ).
+
+    <lfs_op>-legal_org = VALUE #( lt_000[ partner = <lfs_op>-konto ]-textshort OPTIONAL ).
+
+*    <lfs_op>-taxnumxl = VALUE #( lt_tax[ partner = <lfs_op>-konto ]-taxnumxl OPTIONAL ).
+    read table lt_bkpf ASSIGNING FIELD-SYMBOL(<ls_bkpf>) with key
+                                 gjahr = <lfs_op>-gjahr  belnr = <lfs_op>-belnr bukrs = <lfs_op>-bukrs .
+    if sy-subrc = 0.
+*     <lfs_op>-bktxt = <ls_bkpf>-bktxt.
+*     <lfs_op>-cpudt = <ls_bkpf>-cpudt.
+     <lfs_op>-awref = <ls_bkpf>-awref. " MM docno
+     <lfs_op>-werks = <ls_bkpf>-prctr+0(4).
+*     <lfs_op>-REINDAT = <ls_bkpf>-reindat.
+     <lfs_op>-DAY_DIFF = <lfs_op>-augdt - <lfs_op>-bldat.
+    endif.
+*    get zterm text
+    CALL FUNCTION 'FI_PRINT_ZTERM'
+     EXPORTING
+       I_ZTERM               = <lfs_op>-zterm
+      TABLES
+        t_ztext               = lt_text
+     EXCEPTIONS
+       ZTERM_NOT_FOUND       = 1
+       OTHERS                = 2.
+     try.
+     <lfs_op>-PDESC = ( lt_text[ 1 ] ).
+     catch cx_root.
+     endtry.
+     <lfs_op>-day_diff = <lfs_op>-augdt - <lfs_op>-bldat.
+  ENDLOOP.
+
+*  cl_demo_output=>display_data(
+*    EXPORTING
+*      value = it_op
+**      name  =                  " Name
+*  ).
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form display_alv
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM display_alv .
+
+
+
+  TRY.
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = mo_alv
+        CHANGING
+          t_table      = it_op ).
+      mo_alv->get_functions( )->set_all( abap_true ).
+
+      PERFORM build_cat.
+      mo_alv->display( ).
+  ENDTRY.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form build_cat
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM build_cat .
+
+  DATA : lv_salv_column TYPE REF TO cl_salv_columns_table,
+         lv_column      TYPE REF TO cl_salv_column.
+
+  " Display results in ALV
+  TRY.
+      lv_salv_column = mo_alv->get_columns( ).
+  ENDTRY.
+
+*
+  lv_column = lv_salv_column->get_Column( 'KONTO' ).
+  lv_column->set_medium_text( 'Vendor' ).
+  lv_column->set_long_text( 'Vendor' ).
+  CLEAR lv_column.
+*
+  lv_column = lv_salv_column->get_Column( 'NAME1' ).
+  lv_column->set_medium_text( 'Vendor Name' ).
+  lv_column->set_long_text( 'Vendor Name' ).
+  CLEAR lv_column.
+*
+*
+  lv_column = lv_salv_column->get_Column( 'KONZS' ).
+  lv_column->set_medium_text( 'Ven. Cat' ).
+  lv_column->set_Long_text( 'Vendor Category' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'GROUP_D_T' ).
+  lv_column->set_medium_text( 'MSME Status' ).
+  lv_column->set_long_text( 'MSME Status' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'LEGAL_ORG' ).
+  lv_column->set_medium_text( 'MSME Category' ).
+  lv_column->set_long_text( 'MSME Category' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'HKONT' ).
+  lv_column->set_medium_text( 'GL Account' ).
+  lv_column->set_long_text( 'GL Account' ).
+  CLEAR lv_column.
+*
+  lv_column = lv_salv_column->get_Column( 'BLART' ).
+  lv_column->set_medium_text( 'Doc Type' ).
+  lv_column->set_Long_text( 'Document Type' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'BELNR' ).
+  lv_column->set_medium_text( 'DocnNumber' ).
+  lv_column->set_Long_text( 'Document No' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'AWREF' ).
+  lv_column->set_medium_text( 'MM Doc No' ).
+  lv_column->set_Long_text( 'MM Document No' ).
+  CLEAR lv_column.
+
+
+  lv_column = lv_salv_column->get_Column( 'BLDAT' ).
+  lv_column->set_medium_text( 'Bill Dt' ).
+  lv_column->set_Long_text( 'Bill Date' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'XBLNR' ).
+  lv_column->set_medium_text( 'Bill No' ).
+  lv_column->set_Long_text( 'Bill Number' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'U_BKTXT' ).
+  lv_column->set_medium_text( 'QR Code' ).
+  lv_column->set_Long_text( 'QR Code' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'BUDAT' ).
+  lv_column->set_medium_text( 'Posting Date' ).
+  lv_column->set_Long_text( 'Posting Date' ).
+  CLEAR lv_column.
+
+
+  lv_column = lv_salv_column->get_Column( 'U_CPUDT' ).
+  lv_column->set_medium_text( 'Ent Date' ).
+  lv_column->set_Long_text( 'Entry Date' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'GJAHR' ).
+  lv_column->set_medium_text( 'Fiscal Year' ).
+  CLEAR lv_column.
+
+
+  lv_column = lv_salv_column->get_Column( 'AUGBL' ).
+  lv_column->set_medium_text( 'PMNT Doc' ).
+  lv_column->set_long_text( 'Payment Document' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'BWWRT' ).
+  lv_column->set_medium_text( 'Bill Amount' ).
+  lv_column->set_long_text( 'Bill Amount' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'AUGDT' ).
+  lv_column->set_medium_text( 'PMNT Date' ).
+  lv_column->set_long_text( 'Payment Date' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'DAY_DIFF' ).
+  lv_column->set_medium_text( 'Day Diff' ).
+  lv_column->set_long_text( 'Day Difference' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'ZTERM' ).
+  lv_column->set_medium_text( 'PMVT Trms' ).
+  lv_column->set_long_text( 'Payment Terms' ).
+  CLEAR lv_column.
+
+  lv_column = lv_salv_column->get_Column( 'PDESC' ).
+  lv_column->set_medium_text( 'Payt Description' ).
+  lv_column->set_long_text( 'Payt Description' ).
+  CLEAR lv_column.
+
+
+**  lv_column = lv_salv_column->get_Column( 'EBELN' ).
+**  lv_column->set_medium_text( 'PO Number' ).
+**  CLEAR lv_column.
+**
+**  lv_column = lv_salv_column->get_Column( 'EBELP' ).
+**  lv_column->set_medium_text( 'PO Item' ).
+**  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'GJAHR' ).
+*  lv_column->set_medium_text( 'Year' ).
+*  CLEAR lv_column.
+*
+**  lv_column = lv_salv_column->get_Column( 'GSBER' ).
+**  lv_column->set_medium_text( 'Business Area' ).
+**  lv_column->set_long_text( 'Business Area' ).
+**  CLEAR lv_column.
+**  lv_column = lv_salv_column->get_Column( 'KOART' ).
+**  lv_column->set_medium_text( 'Account type' ).
+**  lv_column->set_long_text( 'Account type' ).
+**  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'KONTO' ).
+*  lv_column->set_medium_text( 'Account No' ).
+*  lv_column->set_long_text( 'Account No' ).
+*  CLEAR lv_column.
+*
+**  lv_column = lv_salv_column->get_Column( 'KOSTL' ).
+**  lv_column->set_medium_text( 'Cost Center' ).
+**  lv_column->set_long_text( 'Cost Center' ).
+**  CLEAR lv_column.
+*  lv_column = lv_salv_column->get_Column( 'MONAT' ).
+*  lv_column->set_medium_text( 'Fiscal period' ).
+*  lv_column->set_long_text( 'Fiscal period' ).
+*  CLEAR lv_column.
+*
+**  lv_column = lv_salv_column->get_Column( 'MWSKZ' ).
+**  lv_column->set_medium_text( 'Tax on sales' ).
+**  lv_column->set_long_text( 'Tax on sales' ).
+**  CLEAR lv_column.
+**
+**  lv_column = lv_salv_column->get_Column( 'PRCTR' ).
+**  lv_column->set_medium_text( 'Profit Cntr' ).
+**  lv_column->set_long_text( 'Profit Center' ).
+**  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'SGTXT' ).
+*  lv_column->set_medium_text( 'Text' ).
+*  lv_column->set_long_text( 'Item Text' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'SHKZG' ).
+*  lv_column->set_medium_text( 'D/C Ind' ).
+*  lv_column->set_long_text( 'D/C Ind' ).
+*  CLEAR lv_column.
+*
+*
+*
+**  lv_column = lv_salv_column->get_Column( 'VBELN' ).
+**  lv_column->set_medium_text( 'SO no' ).
+**  lv_column->set_long_text( 'SO Document Number' ).
+**  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'WERKS' ).
+*  lv_column->set_medium_text( 'Plant' ).
+*  lv_column->set_long_text( 'Plant' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'XBLNR' ).
+*  lv_column->set_medium_text( 'Ref Doc No' ).
+*  lv_column->set_long_text( 'Reference Document Number' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'HKONT' ).
+*  lv_column->set_medium_text( 'GL Acc no' ).
+*  lv_column->set_long_text( 'GL Acc no' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'GROUP_D' ).
+*  lv_column->set_medium_text( 'MSME Code' ).
+*  lv_column->set_long_text( 'MSME Code' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'GROUP_D_T' ).
+*  lv_column->set_medium_text( 'MSME Status' ).
+*  lv_column->set_long_text( 'MSME Status' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'LEGAL_ORG' ).
+*  lv_column->set_medium_text( 'MSME Category' ).
+*  lv_column->set_long_text( 'MSME Category' ).
+*  CLEAR lv_column.
+*
+*  lv_column = lv_salv_column->get_Column( 'TAXNUMXL' ).
+*  lv_column->set_medium_text( 'MSME Number' ).
+*  lv_column->set_long_text( 'MSME Number' ).
+*  CLEAR lv_column.
+
+
+
+
+ENDFORM.
