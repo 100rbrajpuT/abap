@@ -1,0 +1,57 @@
+*&---------------------------------------------------------------------*
+*& Report ZPRG_U_CLASS_IT_TB_TEST
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zprg_u_class_it_tb_test.
+
+
+DATA : lo_object TYPE REF TO zusual_abap_class_29.
+DATA : lt_final TYPE ztstr_sales_details.
+DATA : lwa_final TYPE zstr_sales_details.
+data : lv_vbeln TYPE vbeln_va.
+
+*PARAMETERS : p_vbeln  TYPE vbeln_va.
+SELECT-OPTIONS : s_vbeln  for lv_vbeln.
+
+create OBJECT lo_object.
+
+*CALL METHOD lo_object->get_data
+*  EXPORTING
+*    pvbeln    = p_vbeln
+*  IMPORTING
+*    lt_output = lt_final
+*    .
+
+CALL METHOD lo_object->get_multipledata
+  EXPORTING
+    svbeln    = s_vbeln[]
+  IMPORTING
+    lt_output = lt_final
+    .
+
+
+    data : lo_alv TYPE REF TO cl_salv_table.
+
+    TRY.
+    CALL METHOD cl_salv_table=>factory
+*      EXPORTING
+*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
+*        r_container    =
+*        container_name =
+      IMPORTING
+        r_salv_table   = lo_alv
+      CHANGING
+        t_table        = lt_final
+        .
+    lo_alv->display( ).
+*      CATCH cx_salv_msg.
+
+      CATCH cx_salv_msg INTO DATA(lx_msg).
+            MESSAGE lx_msg->get_text( ) TYPE 'S'.
+
+    ENDTRY.
+
+*LOOP AT lt_final into lwa_final .
+*    write : lwa_final-vbeln, lwa_final-ernam , lwa_final-posnr.
+*ENDLOOP.
