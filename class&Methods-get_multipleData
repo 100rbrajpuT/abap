@@ -1,0 +1,57 @@
+  method GET_MULTIPLEDATA.
+
+
+     TYPES : BEGIN OF lty_vbak,
+              vbeln TYPE vbeln_va,
+              erdat TYPE erdat,
+              erzet TYPE erzet,
+              ernam TYPE ernam,
+            END OF lty_vbak.
+
+    DATA : lt_vbak TYPE TABLE OF lty_vbak,
+           ls_vbak TYPE  lty_vbak.
+
+    TYPES : BEGIN OF lty_vbap,
+              vbeln TYPE vbeln_va,
+              posnr TYPE posnr_va,
+              matnr TYPE matnr,
+            END OF lty_vbap.
+
+    DATA : lt_vbap TYPE TABLE OF lty_vbap,
+           ls_vbap TYPE  lty_vbap.
+
+    data:  lwa_data TYPE ZSTR_SALES_DETAILS.
+
+
+    SELECT   vbeln  erdat erzet  ernam
+    FROM vbak
+    INTO TABLE lt_vbak
+    WHERE vbeln in SVBELN[].
+
+    IF lt_vbak IS NOT INITIAL.
+        SELECT vbeln posnr matnr
+        FROM vbap
+        INTO TABLE lt_vbap
+        for ALL ENTRIES IN lt_vbak
+        WHERE vbeln  = lt_vbak-vbeln.
+
+    ENDIF.
+
+
+    LOOP AT lt_vbak INTO  ls_vbak.
+      LOOP AT lt_vbap into ls_vbap WHERE vbeln = ls_vbak-vbeln .
+            lwa_data-vbeln = ls_vbak-vbeln.
+            lwa_data-erdat = ls_vbak-erdat.
+            lwa_data-erzet = ls_vbak-erzet.
+            lwa_data-ernam = ls_vbak-ernam.
+            lwa_data-posnr = ls_vbap-posnr.
+            lwa_data-matnr = ls_vbap-matnr.
+
+            append lwa_data to LT_OUTPUT.
+            clear : lwa_data.
+
+      ENDLOOP.
+    ENDLOOP.
+
+
+  endmethod.
