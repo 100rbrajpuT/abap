@@ -1,0 +1,196 @@
+*&---------------------------------------------------------------------*
+*& Report ZPRG_PS_REPORT_S
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zprg_ps_report_s.
+
+include zps_declaration_top.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  PARAMETERS: p_bukr  TYPE ps_vbukr OBLIGATORY,    "Company code
+              p_werks TYPE werks_d OBLIGATORY,     "Plant
+              p_prctr TYPE prctr OBLIGATORY ,    "Profit Center
+              p_pspnr TYPE ps_posnr ,    "Project
+              p_banfn TYPE banfn.                  "Purchase Requisition
+SELECTION-SCREEN END OF BLOCK b1.
+
+START-OF-SELECTION.
+
+* Fetch data from PRPS table based on the selection criteria
+SELECT pbukr werks prctr pspnr posid psphi
+  FROM prps
+  INTO TABLE lt_prps
+  WHERE pbukr = p_bukr
+    AND werks = p_werks
+    AND prctr = p_prctr.
+
+IF lt_prps IS NOT INITIAL.
+  " Fetch related data from PROJ table using pspnr from PRPS
+  SELECT vbukr werks prctr pspnr pspid post1 astnr plfaz plsez
+    FROM proj
+    INTO TABLE lt_proj
+    FOR ALL ENTRIES IN lt_prps
+    WHERE pspnr = lt_prps-pspnr.  " Linking proj and prps by pspnr
+
+  IF sy-subrc = 0 AND lt_proj IS NOT INITIAL.
+    " Fetch data from EBAN table (purchase requisition) based on pspnr from PRPS
+    SELECT banfn pspnr
+      FROM eban
+      INTO TABLE lt_eban
+      FOR ALL ENTRIES IN lt_prps
+      WHERE pspnr = lt_prps-pspnr.
+
+    " Loop through PRPS and fill final structure with linked data from PROJ and EBAN
+    LOOP AT lt_prps INTO ls_prps.
+      " Find matching entry in PROJ table
+      READ TABLE lt_proj INTO ls_proj WITH KEY pspnr = ls_prps-pspnr.
+      IF sy-subrc = 0.
+        " Fill final structure with PROJ data
+        ls_final-vbukr = ls_proj-vbukr.
+        ls_final-werks = ls_proj-werks.
+        ls_final-prctr = ls_proj-prctr.
+        ls_final-pspnr = ls_prps-pspnr.
+        ls_final-posid = ls_prps-posid.
+        ls_final-pspid = ls_proj-pspid.
+        ls_final-post1 = ls_proj-post1.
+        ls_final-astnr = ls_proj-astnr.
+        ls_final-plfaz = ls_proj-plfaz.
+        ls_final-plsez = ls_proj-plsez.
+
+        " Find corresponding BANFN in EBAN table
+        READ TABLE lt_eban INTO ls_eban WITH KEY pspnr = ls_prps-pspnr.
+        IF sy-subrc = 0.
+          ls_final-banfn = ls_eban-banfn.
+        ENDIF.
+
+        " Append to final table
+        APPEND ls_final TO lt_final.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+ENDIF.
+
+
+
+*  SELECT vbukr werks prctr  pspnr pspid post1 astnr plfaz plsez
+*    FROM proj
+*    INTO TABLE lt_proj
+*    WHERE vbukr = p_bukr
+*      AND werks = p_werks
+*      AND prctr = p_prctr.
+*
+*  IF lt_proj IS NOT INITIAL.
+*    SELECT pbukr werks prctr pspnr posid psphi "projn
+*    FROM prps
+*     INTO TABLE lt_prps.
+**    FOR ALL ENTRIES IN lt_proj
+*
+**     WHERE pspnr = 52.
+*    " pbukr = lt_proj-vbukr
+**     AND werks = lt_proj-werks
+**     AND prctr = lt_proj-prctr
+**    AND pspnr = lt_proj-pspnr.
+*    " and psphi  = lt_proj-pspnr.   "pspid.  "pspnr.
+**      and POSID  = lt_proj-pspnr.
+*
+*
+*    " Fetch data from EBAN table (purchase requisition)
+*    IF p_banfn IS INITIAL.
+*      " No PR filter, fetch all PR data for the WBS elements
+*      SELECT banfn disub_pspnr "DISUB_PSPNR - pspnr
+*        FROM eban
+*        INTO TABLE lt_eban
+*        FOR ALL ENTRIES IN lt_prps
+*        WHERE disub_pspnr = lt_prps-pspnr.
+**    ELSE.
+**      " Filter by PR (BANFN) from the selection screen
+**      SELECT banfn pspnr
+**        FROM eban
+**        INTO TABLE lt_eban
+**        WHERE banfn = p_banfn
+**          AND pspnr IN (select pspnr FROM prps WHERE prps.pbukr = p_bukr AND prps.prctr = p_prctr AND prps.werks = p_werks).
+*
+*      LOOP AT lt_prps INTO ls_prps.
+*        READ TABLE lt_proj INTO ls_proj WITH KEY pspnr = ls_prps-pspnr.
+*        IF sy-subrc = 0.
+*          ls_final-vbukr = ls_proj-vbukr.
+*          ls_final-werks = ls_proj-werks.
+*          ls_final-prctr = ls_proj-prctr.
+*          ls_final-pspnr = ls_prps-pspnr.
+*          ls_final-posid = ls_prps-posid.
+*          ls_final-pspid = ls_proj-pspid.
+*          ls_final-post1 = ls_proj-post1.
+*          ls_final-astnr = ls_proj-astnr.
+*          ls_final-plfaz = ls_proj-plfaz.
+*          ls_final-plsez = ls_proj-plsez.
+*
+*          " Check for corresponding BANFN in EBAN table
+*          READ TABLE lt_eban INTO ls_eban WITH KEY pspnr = ls_prps-pspnr.
+*          IF sy-subrc = 0.
+*            ls_final-banfn = ls_eban-banfn.
+*          ENDIF.
+*
+*          " Append final data
+*          APPEND ls_final TO lt_final.
+*        ENDIF.
+*      ENDLOOP.
+*
+*
+*
+*    ENDIF.
+*  ENDIF.
+*
+**  ENDIF.
+
+END-OF-SELECTION.
+
+  " Output the data from PRPS and PROJ tables
+*LOOP AT lt_prps INTO ls_prps.
+*  WRITE: / 'Company Code:', ls_prps-pbukr,
+*         / 'Plant:', ls_prps-werks,
+*         / 'Profit Center:', ls_prps-prctr,
+*         / 'WBS Element:', ls_prps-pspnr.
+*
+*  " Find matching project data in PROJ table
+*  READ TABLE lt_proj INTO ls_proj WITH KEY projn = ls_prps-projn.
+*  IF sy-subrc = 0.
+*    WRITE: / 'Project Definition:', ls_proj-projn,
+*           / 'Project ID:', ls_proj-pspid,
+*           / 'Controlling Area:', ls_proj-kokrs,
+*           / 'Project Type:', ls_proj-astnr,
+*           / 'Project Plant:', ls_proj-werks.
+*  ELSE.
+*    WRITE: / 'No project data found for WBS element:', ls_prps-pspnr.
+*  ENDIF.
+*
+*  ULINE. " Add a separator line for readability
+*ENDLOOP.
+
+*  LOOP AT lt_proj INTO ls_proj.
+*    WRITE: / 'Company Code:', ls_proj-vbukr,
+*         / 'Plant:', ls_proj-werks,
+*         / 'Profit Center:', ls_proj-prctr,
+*         / 'prject internal:', ls_proj-pspnr.
+*  ENDLOOP.
+
+
+  DATA : lo_alv TYPE REF TO cl_salv_table.
+  TRY.
+      CALL METHOD cl_salv_table=>factory
+*      EXPORTING
+*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
+*        r_container    =
+*        container_name =
+        IMPORTING
+          r_salv_table = lo_alv
+        CHANGING
+          t_table      = lt_proj. "lt_final.
+      lo_alv->display( ).
+*      CATCH cx_salv_msg.
+
+    CATCH cx_salv_msg INTO DATA(lx_msg).
+      MESSAGE lx_msg->get_text( ) TYPE 'S'.
+
+  ENDTRY.

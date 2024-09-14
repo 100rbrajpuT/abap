@@ -1,0 +1,22 @@
+{
+    "auditDate": "11-SEP-2024",
+    "audittype": "Internal Audit",
+    "findingType": "SMS Requirements",
+    "repeatItem": 0,
+    "numItems": 1,
+    "category": "Waste Minimization",
+    "responPerson": "CHIRAG PATEL",
+    "contactPerson": "CHIRAG PATEL",
+    "mult_Cc": "mehul.pastagiya@valcre.in",
+    "classification": "1 day",
+    "description": "Waste received for Inspection lot 1807039875 Batch W070124063  manifest no. 050000320197 found  Action Required, due to one or more below mentioned parameters identified above threshold level:",
+    "correctiveAction": "1. With reference to the ATS generated, Safe work permit shall be generated.                                   2. All the team members involved in sampling, unloading, processing, packaging, loading, dispatch, logistics, maintenance, EHS activities to be simultaneously alerted.      3. Operation team (production, lab and EHS) needs to ensure that this consignment must be handled with precaution till it is completely consumed in the process.",
+    "siteId": 2,
+    "status": "Open",
+    "ph": "PH",
+    "reactivity": "Reactivity - Air , Water, Acid, Alkali",
+    "self": "Self-Ignition",
+    "flashPoint": "Flash Point",
+    "eye": "Eye, Skin Irritation",
+    "toxicGas": "Toxic Gas (any of the toxic gases above threshold limits)"
+}
