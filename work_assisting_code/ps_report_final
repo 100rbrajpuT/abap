@@ -1,0 +1,266 @@
+*&---------------------------------------------------------------------*
+*& Report ZPRG_PS_REPORT_S
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zprg_ps_report_ss.
+
+INCLUDE zps_declaration_top_s.
+*INCLUDE zps_declaration_top.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  PARAMETERS: p_bukr  TYPE ps_vbukr OBLIGATORY,    "Company code
+              p_werks TYPE werks_d , "OBLIGATORY,     "Plant
+              p_prctr TYPE prctr  ,  "OBLIGATORY ,    "Profit Center
+              p_pspnr TYPE ps_posnr OBLIGATORY ,    "Project / wbs element
+              p_banfn TYPE banfn.                  "Purchase Requisition
+SELECTION-SCREEN END OF BLOCK b1.
+
+START-OF-SELECTION.
+
+  SELECT pbukr werks prctr pspnr  posid   objnr psphi
+  FROM prps
+  INTO TABLE lt_prps
+  WHERE pbukr  =  p_bukr
+  AND pspnr  = p_pspnr.
+
+
+  IF lt_prps IS NOT INITIAL.
+    SELECT vbukr werks prctr  pspnr pspid post1 astnr plfaz plsez
+    FROM proj
+    INTO TABLE lt_proj
+    FOR ALL ENTRIES IN lt_prps
+    WHERE vbukr = lt_prps-pbukr
+      AND werks = lt_prps-werks
+      AND prctr = lt_prps-prctr.
+  ENDIF.
+
+*  IF lt_prps IS NOT INITIAL.
+*    SELECT banfn disub_pspnr
+*      FROM eban
+*      INTO TABLE lt_eban
+*      FOR ALL ENTRIES IN lt_prps
+*      WHERE disub_pspnr = lt_prps-pspnr.
+*  ENDIF.
+
+
+  IF lt_prps IS NOT INITIAL.
+    SELECT aufnr auart autyp  kappl pspel
+      FROM aufk
+      INTO TABLE lt_aufk
+      FOR ALL ENTRIES IN lt_prps
+      WHERE pspel = lt_prps-pspnr.
+
+    IF lt_aufk IS NOT INITIAL.
+      SELECT aufnr anfaufnr aufpl aplzt pspel
+        FROM caufv
+        INTO TABLE lt_caufv
+        FOR ALL ENTRIES IN lt_aufk
+     WHERE aufnr = lt_aufk-aufnr.
+*        WHERE anfaufnr = lt_aufk-aufnr.
+    ENDIF.
+
+    IF lt_caufv IS NOT INITIAL .
+      SELECT aufpl aplzl banfn  bnfpo mill_oc_aufnr_mo
+        FROM afvc
+        INTO TABLE lt_afvc
+        FOR ALL ENTRIES IN lt_caufv
+        WHERE aufpl =  lt_caufv-aufpl.
+*        and aplzl = lt_caufv-aufpl
+*        and MILL_OC_AUFNR_MO =  lt_caufv-aufnr.
+
+      IF lt_afvc IS NOT INITIAL.
+
+        SELECT ebeln ebelp banfn bnfpo
+          FROM ekpo
+          INTO TABLE lt_ekpo
+          FOR ALL ENTRIES IN lt_afvc
+          WHERE banfn = lt_afvc-banfn
+            AND bnfpo = lt_afvc-bnfpo.
+
+        IF  lt_ekpo IS NOT INITIAL.
+          SELECT ebeln  lifnr
+            FROM ekko
+            INTO TABLE lt_ekko
+            FOR ALL ENTRIES IN lt_ekpo
+            WHERE ebeln   =  lt_ekpo-ebeln.
+
+          IF  lt_ekko IS NOT INITIAL.
+            SELECT lifnr name1
+              FROM lfa1
+              INTO TABLE lt_lfa1
+              FOR ALL ENTRIES IN lt_ekko
+              WHERE lifnr = lt_ekko-lifnr.
+          ENDIF.
+
+
+        ENDIF.
+
+        LOOP AT lt_afvc INTO ls_afvc.
+          CLEAR ls_final.
+
+          " Map fields from lt_afvc
+
+*          ls_final-banfn = ls_afvc-banfn.  " This will ensure the banfn is appended correctly
+*          IF ls_afvc-banfn = '' .
+*             SKIP.
+*          ENDIF.
+          IF ls_afvc-banfn IS NOT INITIAL.
+            ls_final-banfn = ls_afvc-banfn.
+            ls_final-bnfpo = ls_afvc-bnfpo.
+            " Retrieve PO data from EKPO
+            READ TABLE lt_ekpo INTO ls_ekpo WITH KEY banfn = ls_afvc-banfn
+                                                  bnfpo = ls_afvc-bnfpo.
+            IF sy-subrc = 0.
+              ls_final-ebeln = ls_ekpo-ebeln.  " Purchasing Document Number (PO)
+              ls_final-ebelp = ls_ekpo-ebelp.  " Item Number of Purchasing Document
+
+            ENDIF.
+            IF  lt_ekpo IS NOT INITIAL.
+              READ TABLE lt_ekko INTO ls_ekko WITH KEY ebeln  = ls_ekpo-ebeln.
+              IF sy-subrc = 0.
+                ls_final-lifnr = ls_ekko-lifnr.
+              ENDIF.
+              IF lt_ekko IS NOT INITIAL.
+                READ TABLE lt_lfa1 INTO ls_lfa1 WITH KEY lifnr  = ls_ekko-lifnr.
+                IF sy-subrc = 0.
+                  ls_final-name1 = ls_lfa1-name1.
+                ENDIF.
+              ENDIF.
+            ENDIF.
+          ELSE.
+            CONTINUE.
+          ENDIF.
+
+          " Now add data from other related tables (PRPS, PROJ, EBAN, AUFK, CAUFV)
+          " Read PRPS data
+          READ TABLE lt_prps INTO ls_prps WITH KEY pspnr = p_pspnr.
+          IF sy-subrc = 0.
+            ls_final-vbukr = ls_prps-pbukr.
+            ls_final-werks = ls_prps-werks.
+            ls_final-prctr = ls_prps-prctr.
+            ls_final-pspnr = ls_prps-pspnr.
+            ls_final-posid = ls_prps-posid.
+            ls_final-pspid = ls_prps-psphi.
+          ENDIF.
+
+          " Read PROJ data
+          READ TABLE lt_proj INTO ls_proj WITH KEY vbukr = ls_prps-pbukr
+                                           werks = ls_prps-werks
+                                           prctr = ls_prps-prctr.
+          IF sy-subrc = 0.
+            ls_final-post1 = ls_proj-post1.
+            ls_final-astnr = ls_proj-astnr.
+            ls_final-plfaz = ls_proj-plfaz.
+            ls_final-plsez = ls_proj-plsez.
+          ENDIF.
+
+          " Read EBAN data
+*          READ TABLE lt_eban INTO ls_eban WITH KEY disub_pspnr = ls_prps-pspnr.
+*          IF sy-subrc = 0.
+*            ls_final-banfn = ls_eban-banfn.
+*          ENDIF.
+
+          " Read AUFK data
+          READ TABLE lt_aufk INTO ls_aufk WITH KEY pspel = ls_prps-pspnr.
+          IF sy-subrc = 0.
+            ls_final-aufnr = ls_aufk-aufnr.
+            ls_final-auart = ls_aufk-auart.
+            ls_final-autyp = ls_aufk-autyp.
+            ls_final-kappl = ls_aufk-kappl.
+          ENDIF.
+
+          " Read CAUFV data
+          READ TABLE lt_caufv INTO ls_caufv WITH KEY aufnr = ls_aufk-aufnr.
+          IF sy-subrc = 0.
+            ls_final-aufpl = ls_caufv-aufpl.
+          ENDIF.
+
+          " Append the final record to lt_final
+          APPEND ls_final TO lt_final.
+        ENDLOOP.
+      ENDIF.
+
+    ENDIF.
+
+
+
+  ENDIF.
+
+  SORT lt_final BY aufnr banfn pspnr.
+*  DELETE ADJACENT DUPLICATES FROM lt_final COMPARING aufnr banfn pspnr.
+
+
+
+END-OF-SELECTION.
+
+*  * Merge lt_prps and lt_proj into lt_final
+****  LOOP AT lt_prps INTO ls_prps.
+****    LOOP AT lt_proj INTO ls_proj
+****      WHERE vbukr = ls_prps-pbukr
+****        AND werks = ls_prps-werks
+****        AND prctr = ls_prps-prctr.
+*****        AND pspnr = ls_prps-pspnr.
+****
+****      CLEAR ls_final.
+****      ls_final-vbukr = ls_prps-pbukr.
+****      ls_final-werks = ls_prps-werks.
+****      ls_final-prctr = ls_prps-prctr.
+****      ls_final-pspnr = ls_prps-pspnr.
+****      ls_final-posid = ls_prps-posid.
+****      ls_final-pspid = ls_prps-psphi.
+****
+*****      ls_final-vbukr = ls_proj-vbukr.
+*****      ls_final-pspid = ls_proj-pspid.
+****      ls_final-post1 = ls_proj-post1.
+****      ls_final-astnr = ls_proj-astnr.
+****      ls_final-plfaz = ls_proj-plfaz.
+****      ls_final-plsez = ls_proj-plsez.
+****
+****      READ TABLE lt_eban INTO ls_eban WITH KEY disub_pspnr = ls_prps-pspnr.
+****      IF sy-subrc = 0.
+****        ls_final-banfn = ls_eban-banfn.  " Purchase Requisition
+****      ENDIF.
+****
+****
+****      READ TABLE lt_aufk INTO ls_aufk WITH KEY pspel = ls_prps-pspnr.
+****      IF sy-subrc = 0.
+****        ls_final-aufnr = ls_aufk-aufnr.
+****        ls_final-auart = ls_aufk-auart.
+****        ls_final-autyp = ls_aufk-autyp.   "KAPPL
+****        ls_final-kappl = ls_aufk-kappl.   "KAPPL
+****      ENDIF.
+****
+****      READ TABLE lt_caufv INTO ls_caufv WITH KEY aufnr = ls_aufk-aufnr.
+****      IF sy-subrc = 0.
+****        ls_final-aufpl = ls_caufv-aufpl.
+****      ENDIF.
+****
+****      APPEND ls_final TO lt_final.
+****    ENDLOOP.
+****  ENDLOOP.
+
+
+
+  DATA : lo_alv TYPE REF TO cl_salv_table.
+  TRY.
+      CALL METHOD cl_salv_table=>factory
+*      EXPORTING
+*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
+*        r_container    =
+*        container_name =
+        IMPORTING
+          r_salv_table = lo_alv
+        CHANGING
+          t_table      = lt_final.
+
+
+
+      lo_alv->display( ).
+*      CATCH cx_salv_msg.
+
+    CATCH cx_salv_msg INTO DATA(lx_msg).
+      MESSAGE lx_msg->get_text( ) TYPE 'S'.
+
+  ENDTRY.
