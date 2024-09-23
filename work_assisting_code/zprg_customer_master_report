@@ -1,0 +1,118 @@
+*&---------------------------------------------------------------------*
+*& Report ZCUST_CNT_MASTER_REPORT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zcust_cnt_master_report.
+
+TABLES: knvv, but000, kna1, adrc, adr6, t005u, tzont, t001w, tvgrt, t151t, tvkbt, tbrct, but051, but050, adr2, tb905t, tb913, tb911.
+
+
+INCLUDE zdt_declairation_top.
+DATA : lv_partnr TYPE bu_partner.
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+  PARAMETERS: p_vkorg TYPE vkorg.
+  SELECT-OPTIONS : s_partnr FOR lv_partnr.
+
+SELECTION-SCREEN END OF BLOCK b1.
+
+
+
+
+START-OF-SELECTION.
+
+  SELECT knvv~vkorg,
+         t001w~name1,
+       but000~partner,
+         knvv~kunnr,
+         knvv~kdgrp,
+         knvv~vkgrp,
+         knvv~vkbur,
+         but000~name_org1,
+*         but000~name_org2,
+*         but000~name_org3,
+*         but000~name_org4,
+         adrc~street,
+         adrc~city1,
+         adrc~post_code1,
+         kna1~regio,
+         kna1~land1,
+
+         adr6~smtp_addr
+    INTO TABLE @lt_knvv
+    FROM knvv
+    LEFT JOIN but000 ON knvv~kunnr = but000~partner
+    LEFT JOIN kna1 ON knvv~kunnr = kna1~kunnr
+    LEFT JOIN adrc ON kna1~adrnr = adrc~addrnumber
+    LEFT JOIN adr6 ON adrc~addrnumber = adr6~addrnumber
+    LEFT JOIN t001w ON t001w~werks =  knvv~vkorg
+   WHERE knvv~vkorg = @p_vkorg
+     AND but000~partner IN @s_partnr.
+
+end-of-SELECTION.
+  IF sy-subrc = 0.
+**    LOOP AT lt_knvv INTO ls_knvv.
+**
+**    " Concatenate name_org fields into one string
+**    CONCATENATE ls_knvv-name_org1
+**                ls_knvv-name_org2
+**                ls_knvv-name_org3
+**                ls_knvv-name_org4 INTO lv_name_org_combined SEPARATED BY space.
+**
+**    " Assign concatenated string back to a field in your internal table (e.g., as name_org_combined)
+**    ls_knvv-name_org_combined = lv_name_org_combined.
+**
+**    " Update the table with the concatenated field
+**    MODIFY lt_knvv FROM ls_knvv.
+**
+**  ENDLOOP.
+    PERFORM display_data.
+  ELSE.
+    WRITE: / 'No data found for the given selection criteria.'.
+  ENDIF.
+
+*&---------------------------------------------------------------------*
+*&      Form  display_data
+*&---------------------------------------------------------------------*
+FORM display_data.
+
+*  LOOP AT lt_knvv INTO ls_knvv.
+*    WRITE: / ls_knvv-vkorg, ls_knvv-kunnr, ls_knvv-mandt, ls_knvv-kdgrp, ls_knvv-vkgrp, ls_knvv-vkbur,
+*             ls_knvv-partner, ls_knvv-name_org1, ls_knvv-name_org2, ls_knvv-name_org3, ls_knvv-name_org4,
+*             ls_knvv-street, ls_knvv-city1, ls_knvv-post_code1, ls_knvv-regio, ls_knvv-land1, ls_knvv-smtp_addr.
+*  ENDLOOP.
+
+  DATA: lo_alv         TYPE REF TO cl_salv_table,
+        lt_fcat        TYPE lvc_t_fcat,
+        ls_fcat        TYPE lvc_s_fcat,
+        lx_msg         TYPE REF TO cx_salv_msg,
+        lv_salv_column TYPE REF TO cl_salv_columns_table,
+        lv_column      TYPE REF TO cl_salv_column.
+  TRY.
+      CALL METHOD cl_salv_table=>factory
+*      EXPORTING
+*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
+*        r_container    =
+*        container_name =
+        IMPORTING
+          r_salv_table = lo_alv
+        CHANGING
+          t_table      = lt_knvv.
+
+
+      lo_alv->display( ).
+
+
+    CATCH cx_salv_msg INTO lx_msg.
+      MESSAGE lx_msg->get_text( ) TYPE 'S'.
+    CATCH cx_salv_object_not_found INTO DATA(lx_obj_not_found).
+      MESSAGE lx_obj_not_found->get_text( ) TYPE 'S'.
+
+  ENDTRY.
+
+ENDFORM.
+
+
+
+**ENDFORM.
