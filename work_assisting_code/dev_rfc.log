@@ -1,0 +1,10 @@
+
+**** Log file opened at 2024-09-25 12:33:10.217694 UTC+05:30 (India Standard Time), Encoding UTF-8
+NW RFC Library: Kernel variant, Release 750 Patch Level 7, Compiled on Jan 20 2021 03:05:38
+ CPIC library: 753.2020.10.14 version 3, NI library: 40, Kernel Release: 753 Patch Level 728
+ Current working directory: D:\saurabh\sap_Code\work_assisting_code, Program: gneux
+ Hardware: PC with Windows NT 8x Intel 802386 (Mod 24 Step 1), Operating_system: Windows NT 10.0
+ Hostname: C1ITL28-SSINGH, IP address: 172.16.1.235, IPv6 address: fe80::49a4:2a61:2be:266a
+
+2024-09-25 12:33:10.218809 [23868] >> Info entry
+	Did not find config file D:\saurabh\sap_Code\work_assisting_code\sapnwrfc.ini.

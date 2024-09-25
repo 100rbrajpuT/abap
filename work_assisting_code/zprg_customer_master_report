@@ -5,11 +5,12 @@
 *&---------------------------------------------------------------------*
 REPORT zcust_cnt_master_report.
 
-TABLES: knvv, but000, kna1, adrc, adr6, t005u, tzont, t001w, tvgrt, t151t, tvkbt, tbrct, but051, but050, adr2, tb905t, tb913, tb911.
+TABLES: knvv, but000, kna1, adrc, adr6, t005u, tzont, t001w, tvgrt, t151t, tvkbt, tbrct, but051, but050, adr2, tb905t, tb913, tb911  .
 
 
 INCLUDE zdt_declairation_top.
 DATA : lv_partnr TYPE bu_partner.
+DATA: lt_knvv_temp TYPE TABLE OF knvv.
 
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
   PARAMETERS: p_vkorg TYPE vkorg.
@@ -18,55 +19,104 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
 SELECTION-SCREEN END OF BLOCK b1.
 
 
-
-
 START-OF-SELECTION.
+
+**  SELECT knvv~vkorg,
+**         knvv~kunnr,
+**         MAX( knvv~kdgrp ) AS kdgrp,
+**         MAX( knvv~vkgrp ) AS vkgrp,
+**         MAX( knvv~vkbur ) AS vkbur
+**    INTO TABLE @lt_knvv_temp
+**    FROM knvv
+**    WHERE NOT EXISTS ( SELECT 1
+**                         FROM vbak
+**                        WHERE vbak~kunnr = knvv~kunnr
+**                          AND vbak~vkorg = knvv~vkorg )
+**   GROUP BY knvv~vkorg, knvv~kunnr, knvv~mandt.
 
   SELECT knvv~vkorg,
          t001w~name1,
        but000~partner,
-         knvv~kunnr,
-         knvv~kdgrp,
-         knvv~vkgrp,
-         knvv~vkbur,
-         but000~name_org1,
+       but000~bpext ,
+       but000~name_org1,
+       but000~name_org2,
+*        CONCATENATE ( but000~name_org1  but000~name_org2 )
+*            INTO name_org_full SEPARATED BY space ,
+*       CONCAT but000~name_org1
+*       CONCAT ( but000~name_org1, '' , but000~name_org2 ) AS name_org_full,
+       adrc~street,
+       adrc~str_suppl1,
+       adrc~str_suppl2,
+       adrc~str_suppl3,
+       adrc~location,
+       adrc~city2,
+       adrc~post_code1,
+       adrc~city1,
+       kna1~regio AS State_Code,
+       t005u~bezei AS state_name,
+       adr6~smtp_addr,
+       kna1~lzone   AS transportation_zone_code ,
+       tzont~vtext AS transportation_zone_name,   "kn.LOCCO MASTER_KMBPd
+       kna1~Locco  AS master_km_bp,
+       knvv~vkgrp AS region_code,
+       tvgrt~bezei AS region_name,
+       knvv~kdgrp AS industry_scale_code,
+       t151t~ktext  AS industry_scale_name,
+       knvv~vkbur AS sales_office_code,
+       tvkbt~bezei AS     bezei_sales_name  ,    "TYPE    tvkbt-bezei , "SALES_OFFICE_NAME
+       kna1~niels AS grADE ,
+      kna1~bran1 AS industry_type_code,
+      tbrct~vtext AS  industry_type_name,
+*      but000~xdele ,
+       CASE
+         WHEN but000~xdele = 'X' THEN 'INACTIVE'
+         ELSE 'ACTIVE'
+       END AS xdele_status,
+       but051~partner2 AS cont_person_code ,  " CONT_PERSON_CODE
+       b0~name_first ,   " CONT_NAME1
+       b0~name_last ,   " CONT_NAME2
+       adr2~tel_number   " as CONT_TEL_NUMBER1
+*         knvv~kunnr,
+
 *         but000~name_org2,
 *         but000~name_org3,
 *         but000~name_org4,
-         adrc~street,
-         adrc~city1,
-         adrc~post_code1,
-         kna1~regio,
-         kna1~land1,
 
-         adr6~smtp_addr
-    INTO TABLE @lt_knvv
+*         kna1~land1
+
+    INTO TABLE @lt_result
     FROM knvv
     LEFT JOIN but000 ON knvv~kunnr = but000~partner
     LEFT JOIN kna1 ON knvv~kunnr = kna1~kunnr
     LEFT JOIN adrc ON kna1~adrnr = adrc~addrnumber
     LEFT JOIN adr6 ON adrc~addrnumber = adr6~addrnumber
     LEFT JOIN t001w ON t001w~werks =  knvv~vkorg
+    LEFT JOIN t005u ON t005u~bland = kna1~regio AND t005u~spras = 'E' AND t005u~land1 = 'IN'
+    LEFT JOIN tzont ON tzont~zone1 = kna1~lzone AND t005u~spras = 'E' AND t005u~land1 = 'IN'
+    LEFT JOIN tvgrt ON tvgrt~vkgrp = knvv~vkgrp AND tvgrt~spras = 'E'
+    LEFT JOIN t151t ON t151t~kdgrp = knvv~kdgrp AND t151t~spras = 'E'
+    LEFT JOIN tvkbt  ON tvkbt~vkbur = knvv~vkbur AND tvkbt~spras = 'E'
+*     LEFT JOIN lt_knvv_temp AS sub_knvv ON sub_knvv~kunnr = but000~partner
+*                                      AND sub_knvv~vkorg = knvv~vkorg
+     LEFT JOIN tbrct ON tbrct~braco = kna1~bran1 AND tbrct~spras = 'E'
+     LEFT JOIN but051 ON but051~partner1 = but000~partner
+*     left outer  JOIN BUT050  on BUT050~PARTNER2 = but051~PARTNER2 and but051~PARTNER1 = BUT050~PARTNER1
+     LEFT JOIN but000 AS b0 ON b0~partner = but051~partner2
+     LEFT JOIN adr2  ON adr2~persnumber = b0~persnumber  AND adr2~consnumber = '001'
    WHERE knvv~vkorg = @p_vkorg
      AND but000~partner IN @s_partnr.
 
+
+
 end-of-SELECTION.
+
+LOOP AT lt_result INTO ls_result.
+  CONCATENATE ls_result-name_org1 ls_result-name_org2 INTO ls_result-customer_name SEPARATED BY ' '.
+*  modify ls_result-customer_name  .
+ENDLOOP.
+
+
   IF sy-subrc = 0.
-**    LOOP AT lt_knvv INTO ls_knvv.
-**
-**    " Concatenate name_org fields into one string
-**    CONCATENATE ls_knvv-name_org1
-**                ls_knvv-name_org2
-**                ls_knvv-name_org3
-**                ls_knvv-name_org4 INTO lv_name_org_combined SEPARATED BY space.
-**
-**    " Assign concatenated string back to a field in your internal table (e.g., as name_org_combined)
-**    ls_knvv-name_org_combined = lv_name_org_combined.
-**
-**    " Update the table with the concatenated field
-**    MODIFY lt_knvv FROM ls_knvv.
-**
-**  ENDLOOP.
     PERFORM display_data.
   ELSE.
     WRITE: / 'No data found for the given selection criteria.'.
@@ -77,42 +127,360 @@ end-of-SELECTION.
 *&---------------------------------------------------------------------*
 FORM display_data.
 
-*  LOOP AT lt_knvv INTO ls_knvv.
-*    WRITE: / ls_knvv-vkorg, ls_knvv-kunnr, ls_knvv-mandt, ls_knvv-kdgrp, ls_knvv-vkgrp, ls_knvv-vkbur,
-*             ls_knvv-partner, ls_knvv-name_org1, ls_knvv-name_org2, ls_knvv-name_org3, ls_knvv-name_org4,
-*             ls_knvv-street, ls_knvv-city1, ls_knvv-post_code1, ls_knvv-regio, ls_knvv-land1, ls_knvv-smtp_addr.
-*  ENDLOOP.
-
-  DATA: lo_alv         TYPE REF TO cl_salv_table,
-        lt_fcat        TYPE lvc_t_fcat,
-        ls_fcat        TYPE lvc_s_fcat,
-        lx_msg         TYPE REF TO cx_salv_msg,
-        lv_salv_column TYPE REF TO cl_salv_columns_table,
-        lv_column      TYPE REF TO cl_salv_column.
-  TRY.
-      CALL METHOD cl_salv_table=>factory
-*      EXPORTING
-*        list_display   = IF_SALV_C_BOOL_SAP=>FALSE
-*        r_container    =
-*        container_name =
-        IMPORTING
-          r_salv_table = lo_alv
-        CHANGING
-          t_table      = lt_knvv.
 
 
-      lo_alv->display( ).
+
+**  DATA: lo_alv         TYPE REF TO cl_salv_table,
+**        lt_fcat        TYPE lvc_t_fcat,   " Field catalog table
+**        ls_fcat        TYPE lvc_s_fcat,   " Field catalog line
+**        lx_msg         TYPE REF TO cx_salv_msg,
+**        lv_salv_column TYPE REF TO cl_salv_columns_table,
+**        lo_functions   TYPE REF TO cl_salv_functions_list.
+**
+**  " Define field catalog entries
+**  CLEAR: lt_fcat, ls_fcat.
+**
+**  " 1. Field: VKORG (Sales Org)
+**  ls_fcat-fieldname = 'VKORG'.       " Field name in the internal table lt_result
+**  ls_fcat-seltext = 'Sales Org'.   " Column heading
+**  ls_fcat-outputlen = 4.             " Output length for the field
+**  ls_fcat-datatype  = 'CHAR'.        " Data type
+**  APPEND ls_fcat TO lt_fcat.
+**
+**  " 2. Field: NAME1 (Plant Name)
+**  ls_fcat-fieldname = 'NAME165'.
+**  ls_fcat-seltext = 'Plant saurah Name'.
+**  ls_fcat-outputlen = 20.
+**  ls_fcat-datatype  = 'CHAR'.
+**  APPEND ls_fcat TO lt_fcat.
+**
+**  " 3. Field: PARTNER (Partner)
+**  ls_fcat-fieldname = 'PARTNER'.
+**  ls_fcat-seltext = 'Partner'.
+**  ls_fcat-outputlen = 10.
+**  ls_fcat-datatype  = 'CHAR'.
+**  APPEND ls_fcat TO lt_fcat.
+**
+**  " Add more fields as needed for your report
+**  " ... add other fields following the same structure above
+**
+**  TRY.
+**      " Generate ALV table
+**      CALL METHOD cl_salv_table=>factory
+**        IMPORTING
+**          r_salv_table = lo_alv
+**        CHANGING
+**          t_table      = lt_result.
+**
+**      " Apply the field catalog (layout settings)
+**      lo_alv->get_columns( )->set_optimize( abap_true ).
+**
+**      " Enable ALV functions like filter and sorting
+**      lo_functions = lo_alv->get_functions( ).
+**      lo_functions->set_filter( abap_true ).
+**      lo_functions->set_default( abap_true ).
+**
+**      " Display the ALV grid
+**      lo_alv->display( ).
+**
+**    CATCH cx_salv_msg INTO lx_msg.
+**      MESSAGE lx_msg->get_text( ) TYPE 'S'.
+**    CATCH cx_salv_object_not_found INTO DATA(lx_obj_not_found).
+**      MESSAGE lx_obj_not_found->get_text( ) TYPE 'S'.
+**  ENDTRY.
+**
+
+*using function module
 
 
-    CATCH cx_salv_msg INTO lx_msg.
-      MESSAGE lx_msg->get_text( ) TYPE 'S'.
-    CATCH cx_salv_object_not_found INTO DATA(lx_obj_not_found).
-      MESSAGE lx_obj_not_found->get_text( ) TYPE 'S'.
+" PLANT_CODE
+ls_fieldcat-col_pos = '1'.
+ls_fieldcat-fieldname = 'vkorg'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Plant Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
 
-  ENDTRY.
+" PLANT_NAME
+ls_fieldcat-col_pos = '2'.
+ls_fieldcat-fieldname = 'name1'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Plant Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" SAP_CUSTOMER_CODE
+ls_fieldcat-col_pos = '3'.
+ls_fieldcat-fieldname = 'partner'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'SAP Customer Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" CUSTOMER_NAME
+ls_fieldcat-col_pos = '4'.
+ls_fieldcat-fieldname = 'customer_name'.  " Use the new field
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Customer Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+
+*" CUSTOMER_NAME
+*ls_fieldcat-col_pos = '5'.
+*ls_fieldcat-fieldname = 'name_org2'.
+*ls_fieldcat-tabname = 'lt_result'.
+*ls_fieldcat-seltext_l = 'Customer Name'.
+*APPEND ls_fieldcat TO lt_fieldcat.
+*CLEAR ls_fieldcat.
+
+" ADDRESS1
+ls_fieldcat-col_pos = '6'.
+ls_fieldcat-fieldname = 'street'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Address 1'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" ADDRESS2
+ls_fieldcat-col_pos = '7'.
+ls_fieldcat-fieldname = 'str_suppl1'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Address 2'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" ADDRESS3
+ls_fieldcat-col_pos = '8'.
+ls_fieldcat-fieldname = 'str_suppl2'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Address 3'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" ADDRESS4
+ls_fieldcat-col_pos = '9'.
+ls_fieldcat-fieldname = 'str_suppl3'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Address 4'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" DISTRICT
+ls_fieldcat-col_pos = '10'.
+ls_fieldcat-fieldname = 'city2'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'District'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" POST_CODE
+ls_fieldcat-col_pos = '11'.
+ls_fieldcat-fieldname = 'post_code1'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Post Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" CITY
+ls_fieldcat-col_pos = '12'.
+ls_fieldcat-fieldname = 'city1'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'City'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" STATE_CODE
+ls_fieldcat-col_pos = '13'.
+ls_fieldcat-fieldname = 'regio'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'State Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" STATE_NAME
+ls_fieldcat-col_pos = '13'.
+ls_fieldcat-fieldname = 'bezeis'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'State Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" SMTP_ADDR
+ls_fieldcat-col_pos = '14'.
+ls_fieldcat-fieldname = 'smtp_addr'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'SMTP Address'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" TRANSPORTATION_ZONE_CODE
+ls_fieldcat-col_pos = '15'.
+ls_fieldcat-fieldname = 'lzone'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Transportation Zone Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" TRANSPORTATION_ZONE_NAME
+ls_fieldcat-col_pos = '16'.
+ls_fieldcat-fieldname = 'vtext'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Transportation Zone Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" MASTER_KM_BP
+ls_fieldcat-col_pos = '17'.
+ls_fieldcat-fieldname = 'Locco'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Master KM BP'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" REGION_CODE
+ls_fieldcat-col_pos = '18'.
+ls_fieldcat-fieldname = 'vkgrp'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Region Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" REGION_NAME
+ls_fieldcat-col_pos = '19'.
+ls_fieldcat-fieldname = 'bezeiii'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Region Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" INDUSTRY_SCALE_CODE
+ls_fieldcat-col_pos = '20'.
+ls_fieldcat-fieldname = 'kdgrp'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Industry Scale Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" INDUSTRY_SCALE_NAME
+ls_fieldcat-col_pos = '21'.
+ls_fieldcat-fieldname = 'ktext'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Industry Scale Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" SALES_OFFICE_CODE
+ls_fieldcat-col_pos = '22'.
+ls_fieldcat-fieldname = 'vkbur'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Sales Office Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" SALES_OFFICE_NAME
+ls_fieldcat-col_pos = '23'.
+ls_fieldcat-fieldname = 'bezei'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Sales Office Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" GRADE
+ls_fieldcat-col_pos = '24'.
+ls_fieldcat-fieldname = 'niels'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Grade'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" INDUSTRY_TYPE_CODE
+ls_fieldcat-col_pos = '25'.
+ls_fieldcat-fieldname = 'bran1'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Industry Type Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" INDUSTRY_TYPE_NAME
+ls_fieldcat-col_pos = '26'.
+ls_fieldcat-fieldname = 'vtext_ins'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Industry Type Name'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" XDELE
+ls_fieldcat-col_pos = '27'.
+ls_fieldcat-fieldname = 'xdele'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'XDELE'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" CONT_PERSON_CODE
+ls_fieldcat-col_pos = '28'.
+ls_fieldcat-fieldname = 'partner2'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Cont Person Code'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" CONT_NAME1
+ls_fieldcat-col_pos = '29'.
+ls_fieldcat-fieldname = 'name_first'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Cont Name 1'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+" CONT_NAME2
+ls_fieldcat-col_pos = '30'.
+ls_fieldcat-fieldname = 'name_last'.
+ls_fieldcat-tabname = 'lt_result'.
+ls_fieldcat-seltext_l = 'Cont Name 2'.
+APPEND ls_fieldcat TO lt_fieldcat.
+CLEAR ls_fieldcat.
+
+
+CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+  EXPORTING
+*   I_INTERFACE_CHECK      = ' '
+*   I_BYPASSING_BUFFER     =
+*   I_BUFFER_ACTIVE        = ' '
+*    i_callback_program     = sy-repid
+*   I_CALLBACK_PF_STATUS_SET       = ' '
+*    i_callback_top_of_page = 'TOP_PAGE'
+*   I_CALLBACK_USER_COMMAND        = ' '
+*   I_STRUCTURE_NAME       = 'ZSTR2_SALES_27'
+*   IS_LAYOUT              =
+    it_fieldcat            = lt_fieldcat
+*   IT_EXCLUDING           =
+*   IT_SPECIAL_GROUPS      =
+*   IT_SORT                =
+*   IT_FILTER              =
+*   IS_SEL_HIDE            =
+*   I_DEFAULT              = 'X'
+*   I_SAVE                 = ' '
+*   IS_VARIANT             =
+*   IT_EVENTS              =
+*   IT_EVENT_EXIT          =
+*   IS_PRINT               =
+
+*   IT_EXCEPT_QINFO        =
+*   I_SUPPRESS_EMPTY_DATA  = ABAP_FALSE
+* IMPORTING
+*   E_EXIT_CAUSED_BY_CALLER        =
+*   ES_EXIT_CAUSED_BY_USER =
+  TABLES
+    t_outtab               = lt_result
+* EXCEPTIONS
+*   PROGRAM_ERROR          = 1
+*   OTHERS                 = 2
+  .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
 
 ENDFORM.
-
-
-
-**ENDFORM.
