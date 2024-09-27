@@ -73,9 +73,14 @@ START-OF-SELECTION.
          ELSE 'ACTIVE'
        END AS xdele_status,
        but051~partner2 AS cont_person_code ,  " CONT_PERSON_CODE
+*       but051~SMTP_ADDRESS ,                  "cont person email
+*       but051~TEL_NUMBER,                     "telephone num
+
        b0~name_first ,   " CONT_NAME1
-       b0~name_last ,   " CONT_NAME2
-       adr2~tel_number   " as CONT_TEL_NUMBER1
+       b0~name_last  ,  " CONT_NAME2
+       adr2~tel_number  , " as CONT_TEL_NUMBER1
+      adrs~smtp_addr
+*       b0~PERSNUMBER
 *         knvv~kunnr,
 
 *         but000~name_org2,
@@ -102,7 +107,8 @@ START-OF-SELECTION.
      LEFT JOIN but051 ON but051~partner1 = but000~partner
 *     left outer  JOIN BUT050  on BUT050~PARTNER2 = but051~PARTNER2 and but051~PARTNER1 = BUT050~PARTNER1
      LEFT JOIN but000 AS b0 ON b0~partner = but051~partner2
-     LEFT JOIN adr2  ON adr2~persnumber = b0~persnumber  AND adr2~consnumber = '001'
+     LEFT JOIN adr2  ON adr2~persnumber = b0~persnumber " AND adr2~consnumber = '001'
+     LEFT JOIN adr6 AS adrs ON adrs~persnumber = b0~persnumber "AND adr2~consnumber = '001'
    WHERE knvv~vkorg = @p_vkorg
      AND but000~partner IN @s_partnr.
 
@@ -110,13 +116,24 @@ START-OF-SELECTION.
 
 end-of-SELECTION.
 
-LOOP AT lt_result INTO ls_result.
-  CONCATENATE ls_result-name_org1 ls_result-name_org2 INTO ls_result-customer_name SEPARATED BY ' '.
-*  modify ls_result-customer_name  .
-ENDLOOP.
+  DATA: lv_flag TYPE string.
+
+  LOOP AT lt_result INTO ls_result.
+    CONCATENATE ls_result-name_org1 ls_result-name_org2 INTO ls_result-customer_name SEPARATED BY ' ' .
+    IF ls_result-partner2 IS INITIAL.
+      lv_flag = 'X' .
+    ENDIF.
+
+    MODIFY lt_result FROM ls_result .
+  ENDLOOP.
+  SORT lt_result BY partner partner2.
+  IF lv_flag IS INITIAL.
+    DELETE ADJACENT DUPLICATES FROM lt_result COMPARING partner smtp_addr partner2.
+  ENDIF.
 
 
   IF sy-subrc = 0.
+*    PERFORM display_data1.
     PERFORM display_data.
   ELSE.
     WRITE: / 'No data found for the given selection criteria.'.
@@ -193,37 +210,40 @@ FORM display_data.
 *using function module
 
 
-" PLANT_CODE
-ls_fieldcat-col_pos = '1'.
-ls_fieldcat-fieldname = 'vkorg'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Plant Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " PLANT_CODE
+  ls_fieldcat-col_pos = '0'.
+  ls_fieldcat-fieldname = 'VKORG'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Plant Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" PLANT_NAME
-ls_fieldcat-col_pos = '2'.
-ls_fieldcat-fieldname = 'name1'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Plant Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " PLANT_NAME
+  ls_fieldcat-col_pos = '1'.
+  ls_fieldcat-fieldname = 'NAME1'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Plant Name'.
+  ls_fieldcat-outputlen =  15 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" SAP_CUSTOMER_CODE
-ls_fieldcat-col_pos = '3'.
-ls_fieldcat-fieldname = 'partner'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'SAP Customer Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " SAP_CUSTOMER_CODE
+  ls_fieldcat-col_pos = '2'.
+  ls_fieldcat-fieldname = 'PARTNER'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'SAP Customer Code'.
+  ls_fieldcat-outputlen =  15 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" CUSTOMER_NAME
-ls_fieldcat-col_pos = '4'.
-ls_fieldcat-fieldname = 'customer_name'.  " Use the new field
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Customer Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " CUSTOMER_NAME
+  ls_fieldcat-col_pos = '3'.
+  ls_fieldcat-fieldname = 'CUSTOMER_NAME'.  " Use the new field
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Customer Name'.
+  ls_fieldcat-outputlen =  40 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
 
 *" CUSTOMER_NAME
@@ -234,253 +254,295 @@ CLEAR ls_fieldcat.
 *APPEND ls_fieldcat TO lt_fieldcat.
 *CLEAR ls_fieldcat.
 
-" ADDRESS1
-ls_fieldcat-col_pos = '6'.
-ls_fieldcat-fieldname = 'street'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Address 1'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " ADDRESS1
+  ls_fieldcat-col_pos = '4'.
+  ls_fieldcat-fieldname = 'STREET'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Address 1'.
+  ls_fieldcat-outputlen =  35 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" ADDRESS2
-ls_fieldcat-col_pos = '7'.
-ls_fieldcat-fieldname = 'str_suppl1'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Address 2'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " ADDRESS2
+  ls_fieldcat-col_pos = '5'.
+  ls_fieldcat-fieldname = 'STR_SUPPLL'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Address 2'.
+  ls_fieldcat-outputlen =  25 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" ADDRESS3
-ls_fieldcat-col_pos = '8'.
-ls_fieldcat-fieldname = 'str_suppl2'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Address 3'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " ADDRESS3
+  ls_fieldcat-col_pos = '6'.
+  ls_fieldcat-fieldname = 'STR_SUPPL2'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Address 3'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" ADDRESS4
-ls_fieldcat-col_pos = '9'.
-ls_fieldcat-fieldname = 'str_suppl3'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Address 4'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " ADDRESS4
+  ls_fieldcat-col_pos = '7'.
+  ls_fieldcat-fieldname = 'STR_SUPPL3'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Address 4'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" DISTRICT
-ls_fieldcat-col_pos = '10'.
-ls_fieldcat-fieldname = 'city2'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'District'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " DISTRICT
+  ls_fieldcat-col_pos = '8'.
+  ls_fieldcat-fieldname = 'CITY2'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'District'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" POST_CODE
-ls_fieldcat-col_pos = '11'.
-ls_fieldcat-fieldname = 'post_code1'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Post Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " POST_CODE
+  ls_fieldcat-col_pos = '9'.
+  ls_fieldcat-fieldname = 'POST_CODE1'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Post Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" CITY
-ls_fieldcat-col_pos = '12'.
-ls_fieldcat-fieldname = 'city1'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'City'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " CITY
+  ls_fieldcat-col_pos = '10'.
+  ls_fieldcat-fieldname = 'CITY1'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'City'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" STATE_CODE
-ls_fieldcat-col_pos = '13'.
-ls_fieldcat-fieldname = 'regio'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'State Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " STATE_CODE
+  ls_fieldcat-col_pos = '11'.
+  ls_fieldcat-fieldname = 'REGIO'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'State Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" STATE_NAME
-ls_fieldcat-col_pos = '13'.
-ls_fieldcat-fieldname = 'bezeis'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'State Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " STATE_NAME
+  ls_fieldcat-col_pos = '12'.
+  ls_fieldcat-fieldname = 'BEZEIS'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'State Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" SMTP_ADDR
-ls_fieldcat-col_pos = '14'.
-ls_fieldcat-fieldname = 'smtp_addr'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'SMTP Address'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " SMTP_ADDR
+  ls_fieldcat-col_pos = '13'.
+  ls_fieldcat-fieldname = 'SMTP_ADDR'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'SMTP Address'.
+  ls_fieldcat-outputlen =  22 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" TRANSPORTATION_ZONE_CODE
-ls_fieldcat-col_pos = '15'.
-ls_fieldcat-fieldname = 'lzone'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Transportation Zone Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " TRANSPORTATION_ZONE_CODE
+  ls_fieldcat-col_pos = '14'.
+  ls_fieldcat-fieldname = 'LZONE'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Transportation Zone Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" TRANSPORTATION_ZONE_NAME
-ls_fieldcat-col_pos = '16'.
-ls_fieldcat-fieldname = 'vtext'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Transportation Zone Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " TRANSPORTATION_ZONE_NAME
+  ls_fieldcat-col_pos = '15'.
+  ls_fieldcat-fieldname = 'VTEXT'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Transportation Zone Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" MASTER_KM_BP
-ls_fieldcat-col_pos = '17'.
-ls_fieldcat-fieldname = 'Locco'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Master KM BP'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " MASTER_KM_BP
+  ls_fieldcat-col_pos = '16'.
+  ls_fieldcat-fieldname = 'LOCCO'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Master KM BP'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" REGION_CODE
-ls_fieldcat-col_pos = '18'.
-ls_fieldcat-fieldname = 'vkgrp'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Region Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " REGION_CODE
+  ls_fieldcat-col_pos = '17'.
+  ls_fieldcat-fieldname = 'VKGRP'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Region Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" REGION_NAME
-ls_fieldcat-col_pos = '19'.
-ls_fieldcat-fieldname = 'bezeiii'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Region Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " REGION_NAME
+  ls_fieldcat-col_pos = '18'.
+  ls_fieldcat-fieldname = 'BEZEIII'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Region Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" INDUSTRY_SCALE_CODE
-ls_fieldcat-col_pos = '20'.
-ls_fieldcat-fieldname = 'kdgrp'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Industry Scale Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " INDUSTRY_SCALE_CODE
+  ls_fieldcat-col_pos = '19'.
+  ls_fieldcat-fieldname = 'KDGRP'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Industry Scale Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" INDUSTRY_SCALE_NAME
-ls_fieldcat-col_pos = '21'.
-ls_fieldcat-fieldname = 'ktext'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Industry Scale Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " INDUSTRY_SCALE_NAME
+  ls_fieldcat-col_pos = '20'.
+  ls_fieldcat-fieldname = 'KTEXT'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Industry Scale Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" SALES_OFFICE_CODE
-ls_fieldcat-col_pos = '22'.
-ls_fieldcat-fieldname = 'vkbur'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Sales Office Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " SALES_OFFICE_CODE
+  ls_fieldcat-col_pos = '21'.
+  ls_fieldcat-fieldname = 'VKBUR'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Sales Office Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" SALES_OFFICE_NAME
-ls_fieldcat-col_pos = '23'.
-ls_fieldcat-fieldname = 'bezei'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Sales Office Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " SALES_OFFICE_NAME
+  ls_fieldcat-col_pos = '22'.
+  ls_fieldcat-fieldname = 'BEZEI'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Sales Office Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" GRADE
-ls_fieldcat-col_pos = '24'.
-ls_fieldcat-fieldname = 'niels'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Grade'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " GRADE
+  ls_fieldcat-col_pos = '23'.
+  ls_fieldcat-fieldname = 'NEILS'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Grade'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" INDUSTRY_TYPE_CODE
-ls_fieldcat-col_pos = '25'.
-ls_fieldcat-fieldname = 'bran1'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Industry Type Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " INDUSTRY_TYPE_CODE
+  ls_fieldcat-col_pos = '24'.
+  ls_fieldcat-fieldname = 'BRANL'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Industry Type Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" INDUSTRY_TYPE_NAME
-ls_fieldcat-col_pos = '26'.
-ls_fieldcat-fieldname = 'vtext_ins'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Industry Type Name'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " INDUSTRY_TYPE_NAME
+  ls_fieldcat-col_pos = '25'.
+  ls_fieldcat-fieldname = 'VTEXT_INS'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Industry Type Name'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" XDELE
-ls_fieldcat-col_pos = '27'.
-ls_fieldcat-fieldname = 'xdele'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'XDELE'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " XDELE
+  ls_fieldcat-col_pos = '26'.
+  ls_fieldcat-fieldname = 'XDELE'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'XDELE'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-" CONT_PERSON_CODE
-ls_fieldcat-col_pos = '28'.
-ls_fieldcat-fieldname = 'partner2'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Cont Person Code'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+  " CONT_PERSON_CODE
+  ls_fieldcat-col_pos = '27'.
+  ls_fieldcat-fieldname = 'PARTNER2'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Cont Person Code'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
+  ""  but051~SMTP_ADDRESS ,                  "cont person email
+*       but051~TEL_NUMBER,                     "telephone num
 
-" CONT_NAME1
-ls_fieldcat-col_pos = '29'.
-ls_fieldcat-fieldname = 'name_first'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Cont Name 1'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
-
-" CONT_NAME2
-ls_fieldcat-col_pos = '30'.
-ls_fieldcat-fieldname = 'name_last'.
-ls_fieldcat-tabname = 'lt_result'.
-ls_fieldcat-seltext_l = 'Cont Name 2'.
-APPEND ls_fieldcat TO lt_fieldcat.
-CLEAR ls_fieldcat.
+*ls_fieldcat-col_pos = '29'.
+*ls_fieldcat-fieldname = 'SMTP_ADDRESS'.
+*ls_fieldcat-tabname = 'lt_result'.
+*ls_fieldcat-seltext_l = 'Email Addres'.
+*APPEND ls_fieldcat TO lt_fieldcat.
+*CLEAR ls_fieldcat.
+*
 
 
-CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
-  EXPORTING
-*   I_INTERFACE_CHECK      = ' '
-*   I_BYPASSING_BUFFER     =
-*   I_BUFFER_ACTIVE        = ' '
-*    i_callback_program     = sy-repid
-*   I_CALLBACK_PF_STATUS_SET       = ' '
-*    i_callback_top_of_page = 'TOP_PAGE'
-*   I_CALLBACK_USER_COMMAND        = ' '
-*   I_STRUCTURE_NAME       = 'ZSTR2_SALES_27'
-*   IS_LAYOUT              =
-    it_fieldcat            = lt_fieldcat
-*   IT_EXCLUDING           =
-*   IT_SPECIAL_GROUPS      =
-*   IT_SORT                =
-*   IT_FILTER              =
-*   IS_SEL_HIDE            =
-*   I_DEFAULT              = 'X'
-*   I_SAVE                 = ' '
-*   IS_VARIANT             =
-*   IT_EVENTS              =
-*   IT_EVENT_EXIT          =
-*   IS_PRINT               =
+  " CONT_NAME1
+  ls_fieldcat-col_pos = '28'.
+  ls_fieldcat-fieldname = 'NAME_FIRST'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Cont Name 1'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
 
-*   IT_EXCEPT_QINFO        =
-*   I_SUPPRESS_EMPTY_DATA  = ABAP_FALSE
+  " CONT_NAME2
+  ls_fieldcat-col_pos = '29'.
+  ls_fieldcat-fieldname = 'NAME_LAST'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Cont Name 2'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
+
+
+  ls_fieldcat-col_pos = '30'.
+  ls_fieldcat-fieldname = 'TEL_NUMBER'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Tele. Number'.
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
+
+  ls_fieldcat-col_pos = '31'.
+  ls_fieldcat-fieldname = 'SMTP_ADDRE'.
+  ls_fieldcat-tabname = 'lt_result'.
+  ls_fieldcat-seltext_l = 'Email Address'.
+  ls_fieldcat-outputlen =  30 .
+  APPEND ls_fieldcat TO lt_fieldcat.
+  CLEAR ls_fieldcat.
+
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+*     I_INTERFACE_CHECK  = ' '
+*     I_BYPASSING_BUFFER =
+*     I_BUFFER_ACTIVE    = ' '
+      i_callback_program = sy-repid
+*     I_CALLBACK_PF_STATUS_SET       = ' '
+*     i_callback_top_of_page = 'TOP_PAGE'
+*     I_CALLBACK_USER_COMMAND        = ' '
+      i_structure_name   = 'ty_final'
+      is_layout          = ls_layout
+      it_fieldcat        = lt_fieldcat[]
+*     IT_EXCLUDING       =
+*     IT_SPECIAL_GROUPS  =
+*     IT_SORT            =
+*     IT_FILTER          =
+*     IS_SEL_HIDE        =
+*     I_DEFAULT          = 'X'
+*     I_SAVE             = ' '
+*     IS_VARIANT         =
+*     IT_EVENTS          =
+*     IT_EVENT_EXIT      =
+*     IS_PRINT           =
+*     IT_EXCEPT_QINFO    =
+*     I_SUPPRESS_EMPTY_DATA  = ABAP_FALSE
 * IMPORTING
-*   E_EXIT_CAUSED_BY_CALLER        =
-*   ES_EXIT_CAUSED_BY_USER =
-  TABLES
-    t_outtab               = lt_result
-* EXCEPTIONS
-*   PROGRAM_ERROR          = 1
-*   OTHERS                 = 2
-  .
-IF sy-subrc <> 0.
+*     E_EXIT_CAUSED_BY_CALLER        =
+*     ES_EXIT_CAUSED_BY_USER =
+    TABLES
+      t_outtab           = lt_result
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
 * Implement suitable error handling here
-ENDIF.
+
+*    IF sy-subrc = 0.
+*      CALL FUNCTION 'GUI_DOWNLOAD'
+*        EXPORTING
+*          filename         = 'D:\temp\output.xls'
+*          filetype         = 'ASC'
+*        TABLES
+*          data_tab         = lt_result
+*        EXCEPTIONS
+*          file_write_error = 1
+*          OTHERS           = 2.
+*    ENDIF.
+  ENDIF.
 
 
 ENDFORM.
+
+INCLUDE zt_cnt_master_report_displaf01.
