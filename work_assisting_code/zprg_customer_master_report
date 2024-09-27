@@ -545,4 +545,80 @@ FORM display_data.
 
 ENDFORM.
 
+
+
+
+** structure ***
+
 INCLUDE zt_cnt_master_report_displaf01.
+
+
+
+*&---------------------------------------------------------------------*
+*& Include          ZDT_DECLAIRATION_TOP
+*&---------------------------------------------------------------------*
+
+
+
+
+TYPES: BEGIN OF ty_final,
+         vkorg         TYPE vkorg,    "sales orgnx
+         name1         TYPE t001w-name1,
+         partner       TYPE bu_partner,
+         bpext         TYPE but000-bpext,
+         name_org1     TYPE but000-name_org1,
+         name_org2     TYPE but000-name_org2,
+*         customer_name TYPE string,
+         street        TYPE adrc-street,       " Address 1 (ADDRESS1)
+         str_suppl1    TYPE adrc-str_suppl1,   " Address 2 (ADDRESS2)
+         str_suppl2    TYPE adrc-str_suppl2,   " Address 3 (ADDRESS3)
+         str_suppl3    TYPE adrc-str_suppl3,   " Address 4 (ADDRESS4)
+         location      TYPE   adrc-location,
+         city2         TYPE   adrc-city2,
+         post_code1    TYPE  adrc-post_code1,
+         city1         TYPE  adrc-city1,
+         regio         TYPE kna1-regio,
+         bezeis        TYPE t005u-bezei,  "state name
+         smtp_addr     TYPE adr6-smtp_addr,
+         lzone         TYPE kna1-lzone,      "TRANSPORTATION_ZONE_CODE
+         vtext         TYPE tzont-vtext ,    "TRANSPORTATION_ZONE_NAME
+         Locco         TYPE kna1-Locco,
+         vkgrp         TYPE vkgrp,   "Sales Group - REGION_CODE
+         bezeiii       TYPE tvgrt-bezei,   "REGION_NAME
+         kdgrp         TYPE kdgrp,  "Customer Group
+         ktext         TYPE t151t-ktext  , " as INDUSTRY_SCALE_NAME,
+         vkbur         TYPE vkbur,   "Sales Office code
+         bezei         TYPE    tvkbt-bezei , "SALES_OFFICE_NAME
+         niels         TYPE kna1-niels , "n.NIELS GRADE
+         bran1         TYPE kna1-bran1 , "BRAN1 INDUSTRY_TYPE_CODE
+         vtext_ins     TYPE tbrct-vtext , "  INDUSTRY_TYPE_NAME,
+         xdele         TYPE but000-xdele    ,  "
+         partner2      TYPE   but051-partner2 ,  " CONT_PERSON_CODE
+*         smtp_address  TYPE  but051-smtp_address ,                  "cont person email
+*         tel_number    TYPE but051-tel_number,                     "telephone num
+
+         name_first    TYPE but000-name_first ,   " CONT_NAME1
+         name_last     TYPE but000-name_last ,   " CONT_NAME2
+         tel_number    TYPE adr2-tel_number ,  " as CONT_TEL_NUMBER1
+         smtp_addre    TYPE adr6-smtp_addr,
+**  persnumber    TYPE but000-persnumber,
+         customer_name TYPE string,
+*         kunnr      TYPE kunnr,
+*         land1      TYPE kna1-land1,
+         helper_field  TYPE string,
+       END OF ty_final.
+
+
+
+
+*DATA : lt_result TYPE TABLE OF ty_final,
+*       ls_result TYPE ty_final.
+
+DATA: lt_fieldcat TYPE slis_t_fieldcat_alv,
+      ls_fieldcat TYPE slis_fieldcat_alv,
+      ls_layout   TYPE slis_layout_alv,    "here i created work area and slis_fieldcat_alv i got it by double tap on slis_t_fieldcat_alv, and will use for creating maually fieldcatlog
+      lt_result   TYPE TABLE OF ty_final,
+      ls_result   TYPE ty_final,
+*      lt_list     TYPE slis_t_listheader,
+*      ls_list     TYPE slis_listheader,
+      lv_input    TYPE string.
