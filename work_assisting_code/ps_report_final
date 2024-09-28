@@ -264,3 +264,137 @@ END-OF-SELECTION.
       MESSAGE lx_msg->get_text( ) TYPE 'S'.
 
   ENDTRY.
+
+
+
+
+*&---------------------------------------------------------------------*
+*& Include          ZPS_DECLARATION_TOP
+*&---------------------------------------------------------------------*
+
+*tables:  proj , prps,  .
+
+
+TYPES: BEGIN OF lty_proj,
+         vbukr TYPE ps_vbukr,   "Company code
+         werks TYPE werks_d,   "plant
+         prctr TYPE prctr,     " Profit Center
+         pspnr TYPE ps_intnr,  "Project (internal)
+         pspid TYPE ps_pspid,     " Project ID (external)
+         post1 TYPE ps_post1,
+         astnr TYPE ps_astnr,     " Project Type / application number
+         plfaz TYPE ps_plfaz_chg,  "Project planned start date  PLFAZPS_PLFAZ_CHG
+         plsez TYPE ps_plsez_chg,   "Project planned finish date
+       END OF lty_proj.
+
+TYPES: BEGIN OF lty_prps,
+         pbukr TYPE ps_pbukr,  " Company code
+         werks TYPE werks_d,   " Plant
+         prctr TYPE prctr,     " Profit Center
+         pspnr TYPE ps_posnr,  " WBS Element
+         posid TYPE ps_posid,   "Work Breakdown Structure Element (WBS Element)
+         "  projn TYPE proj,      " Project Definition Number (link to PROJ table)
+         objnr TYPE j_objnr,     "Object number
+         psphi TYPE ps_psphi, "ps_pspid , "PS_PSPHI,    --- Current number of the appropriate project
+       END OF lty_prps.
+
+TYPES: BEGIN OF lty_eban,
+         banfn       TYPE banfn,    " Purchase Requisition
+         disub_pspnr TYPE ps_psp_pnr,    "ps_posnr - WBS Element
+       END OF lty_eban.
+
+TYPES: BEGIN OF lty_AUFK,
+         aufnr TYPE aufnr,         " Order Number
+         auart TYPE aufart ,       "Order Type
+         autyp TYPE auftyp ,       " Order category
+*         refnr TYPE aufrefnr,      " Reference Order Number
+         kappl TYPE kappl ,       "Application
+         pspel TYPE ps_psp_ele,    "Work breakdown structure element (WBS element)
+       END OF lty_AUFK.
+
+
+
+TYPES: BEGIN OF lty_caufv,
+         aufnr    TYPE aufnr,           " Order Number
+         anfaufnr TYPE aufanfnr ,    "Requesting order
+         aufpl    TYPE co_aufpl ,      " Routing number of operations in the order
+         aplzt    TYPE co_aplzl,           "General counter for order
+         pspel    TYPE ps_psp_ele,    "Work breakdown structure element (WBS element)
+       END OF lty_caufv.
+
+
+
+TYPES: BEGIN OF lty_AFVC,
+         aufpl            TYPE co_aufpl ,      " Routing number of operations in the order
+         aplzl            TYPE co_aplzl,       "General counter for order
+         banfn            TYPE co_banfn ,         "Purchase Requisition Number
+         bnfpo            TYPE co_bnfpo,          "Item Number of Purchase Requisition in Order
+         mill_oc_aufnr_mo TYPE mill_oc_aufnr_mo,    "Work breakdown structure element (WBS element)
+       END OF lty_afvc.
+
+*EKPO
+TYPES: BEGIN OF lty_EKPO,
+         ebeln TYPE ebeln ,      " Purchasing Document Number -po
+         ebelp TYPE ebelp,       "Item Number of Purchasing Document
+         banfn TYPE banfn ,        "Purchase Requisition Number -pr
+         bnfpo TYPE bnfpo,         "Item Number of Purchase Requisition in Order
+       END OF lty_EKPO.
+* ekko - ebeln ebelp lifnr
+TYPES: BEGIN OF lty_ekko,
+         ebeln TYPE ebeln ,      " Purchasing Document Number -po
+         lifnr TYPE elifn ,  "vendor account num
+       END OF lty_Ekko.
+
+
+TYPES: BEGIN OF lty_lfa1,
+         lifnr TYPE lifnr ,      " Purchasing Document Number -po
+         name1 TYPE name1_gp ,  "vendor account num
+       END OF lty_lfa1.
+
+
+
+TYPES: BEGIN OF lty_final,
+         vbukr TYPE ps_vbukr,  "Company code
+         werks TYPE werks_d,   "Plant
+         prctr TYPE prctr,     "Profit Center
+         pspnr TYPE ps_posnr,  "WBS Element
+         posid TYPE ps_posid,  "WBS ID
+         aufnr TYPE aufnr,
+         auart TYPE aufart ,    "Order Type
+         autyp TYPE auftyp , " Order category
+         kappl TYPE kappl ,     "Application
+         aufpl TYPE co_aufpl ,      " Routing number of operations in the order
+         banfn TYPE banfn,     "Purchase Requisition
+         bnfpo TYPE co_bnfpo,          "Item Number of Purchase Requisition in Order
+         ebeln TYPE ebeln ,      " Purchasing Document Number -po
+         ebelp TYPE ebelp,       "Item Number of Purchasing Document
+         lifnr TYPE elifn ,  "vendor account num
+         name1 TYPE name1_gp,
+         pspid TYPE ps_pspid,  "Project ID (external)
+         post1 TYPE ps_post1,  "Project description
+         astnr TYPE ps_astnr,  "Project Type / application number
+         plfaz TYPE ps_plfaz_chg, "Project planned start date
+         plsez TYPE ps_plsez_chg, "Project planned finish date
+       END OF lty_final.
+
+
+DATA: lt_prps  TYPE TABLE OF lty_prps,   " Internal table for PRPS data
+      ls_prps  TYPE lty_prps,            " Work area for PRPS data
+      lt_proj  TYPE TABLE OF lty_proj,   " Internal table for PROJ data
+      ls_proj  TYPE lty_proj,          " Work area for PROJ data
+      lt_eban  TYPE TABLE OF lty_eban,   " Internal table for  data
+      ls_eban  TYPE lty_eban,
+      lt_AUFK  TYPE TABLE OF lty_AUFK,   " Order master data
+      ls_AUFK  TYPE lty_AUFK,
+      lt_caufv TYPE TABLE OF lty_caufv,   " Order master data
+      ls_caufv TYPE lty_caufv,
+      lt_AFVC  TYPE TABLE OF lty_AFVC,   " Operation within an order
+      ls_AFVC  TYPE lty_AFVC,
+      lt_ekpo  TYPE TABLE OF lty_ekpo,
+      ls_ekpo  TYPE lty_ekpo,
+      lt_ekko  TYPE TABLE OF lty_ekko,
+      ls_ekko  TYPE lty_ekko,
+      lt_lfa1  TYPE TABLE OF lty_lfa1,
+      ls_lfa1  TYPE lty_lfa1,
+      lt_final TYPE TABLE OF lty_final,  " Final internal table
+      ls_final TYPE lty_final.
