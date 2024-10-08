@@ -3,7 +3,10 @@
 *&---------------------------------------------------------------------*
 *&
 *&---------------------------------------------------------------------*
+
 REPORT zwaste_request_clnt.
+
+TABLES : tvgrt .
 DATA : l_where  TYPE string,
        l_where2 TYPE string.
 
@@ -21,7 +24,11 @@ TYPES : BEGIN OF lty_ZAUTOWO_LOG,
           zw_status      TYPE zw_status,
           work_order_no  TYPE vbeln,
           zwo_err_msg    TYPE zwo_err_msg,
-          ZCREATE_DATE  TYPE ZCREATE_DATE ,
+          zcreate_date   TYPE zcreate_date,
+          customer_code  TYPE vbeln,
+          vkorg          TYPE vkorg,
+          vkgrp          TYPE vkgrp,
+          region_name    TYPE region_name,
         END OF lty_ZAUTOWO_LOG.
 
 
@@ -31,10 +38,13 @@ DATA : lt_zautowo_log TYPE TABLE OF lty_ZAUTOWO_LOG,
 
 TYPES: BEGIN OF ty_waste_report,
          zrecno         TYPE zitem_id,    " From ZAUTOWO_LOG table
+         item_id        TYPE zitem_id,    " From ZAUTOWO_LOG table
          plant_code     TYPE werks_d,
          plant_name     TYPE t001w-name1,
          customer_code  TYPE kunnr,
+         region_name    TYPE tvgrt-bezei,
          customer_name  TYPE kna1-name1,
+
          waste_code     TYPE matnr,
          waste_name     TYPE makt-maktx,
          avg_ph         TYPE p LENGTH 16 DECIMALS 3,
@@ -46,11 +56,11 @@ TYPES: BEGIN OF ty_waste_report,
 *         material_easiness TYPE char15,
          physical_state TYPE char15,
 
-*         item_id        TYPE zitem_id,    " From ZAUTOWO_LOG table
+
 *         sap_plant_code TYPE werks_d,     " From ZAUTOWO_LOG table
-*         zw_status      TYPE zw_status,   " From ZAUTOWO_LOG table
-*         work_order_no  TYPE vbeln,       " From ZAUTOWO_LOG table
-*         zwo_err_msg    TYPE zwo_err_msg, " From ZAUTOWO_LOG table
+         zw_status      TYPE zw_status,   " From ZAUTOWO_LOG table
+         work_order_no  TYPE vbeln,       " From ZAUTOWO_LOG table
+         zwo_err_msg    TYPE zwo_err_msg, " From ZAUTOWO_LOG table
        END OF ty_waste_report.
 
 DATA: lt_final_report TYPE TABLE OF ty_waste_report,
@@ -122,7 +132,7 @@ AT SELECTION-SCREEN OUTPUT.
     WRITE: 'Error populating dropdown'.
   ENDIF.
 
-  "Populating the dropdown for ZPARTYPE
+
   name = 'ZPARTYPE'.
 
   value-key = '1'.
@@ -166,30 +176,44 @@ START-OF-SELECTION.
 
     "select * from ZCDS_CLNT_WASTE_REQ_LIFT( sel_opt = @l_where , paratype = @ZPARTYPE ) into table @lt_tab.
     SELECT plant_code , plant_name , customer_code , customer_name , waste_code  ,waste_name , avg_ph , avg_cv , avg_cl , avg_voc FROM zfn_clntwaste_priority( sel_opt = @l_where , paratype = @zpartype ) WHERE plant_code IN @s_VKORG
-      INTO CORRESPONDING FIELDS OF TABLE @lt_tab
-      .
-    IF lt_tab IS NOT INITIAL.
+      INTO CORRESPONDING FIELDS OF TABLE @lt_tab .
 
-      SELECT zrecno, item_id, sap_plant_code, zw_status, work_order_no, zwo_err_msg ,ZCREATE_DATE
-        FROM zautowo_log
-        INTO CORRESPONDING FIELDS OF TABLE @lt_zautowo_log
-        FOR ALL ENTRIES IN @lt_tab
-        WHERE sap_plant_code = @lt_tab-plant_code
-        and ZCREATE_DATE in  @s_date.
-    ENDIF.
 
-*    IF lt_zautowo_log IS NOT INITIAL.
-*
-*    ENDIF.
+
+    SELECT zrecno, item_id, sap_plant_code, zw_status, work_order_no, zwo_err_msg, zcreate_date
+      INTO CORRESPONDING FIELDS OF TABLE @lt_zautowo_log
+      FROM zautowo_log
+      WHERE sap_plant_code IN @s_VKORG
+        AND zcreate_date IN @s_date
+      ORDER BY item_id, zrecno DESCENDING.
+
+    DELETE ADJACENT DUPLICATES FROM lt_zautowo_log COMPARING item_id.
+
+    LOOP AT lt_zautowo_log INTO ls_zautowo_log.
+      SELECT SINGLE rb~vbeln, rb~kunnr, vv~vkorg, vv~vkgrp, tvg~bezei
+        INTO ( @ls_zautowo_log-work_order_no, @ls_zautowo_log-customer_code, @ls_zautowo_log-vkorg, @ls_zautowo_log-vkgrp, @ls_zautowo_log-region_name )
+        FROM vbak AS rb
+        LEFT JOIN knvv AS vv ON vv~kunnr = rb~kunnr
+                            AND vv~vkorg = rb~vkorg
+                            AND vv~vtweg = rb~vtweg
+                            AND vv~spart = rb~spart
+        LEFT JOIN tvgrt AS tvg ON tvg~vkgrp = vv~vkgrp
+                               AND tvg~spras = 'E'
+
+        WHERE rb~vbeln = @ls_zautowo_log-work_order_no.
+
+      MODIFY lt_zautowo_log FROM ls_zautowo_log.
+    ENDLOOP.
 
   ENDIF.
 
+
+
+
+
   CLEAR lt_final_report.
 
-  " Loop over the priority data and append to final table
   LOOP AT lt_tab INTO ls_tab.
-
-    " Initialize the final report structure
     CLEAR ls_final_report.
 
     " Fill data from the CDS view (ZFN_CLNTWASTE_PRIORITY)
@@ -208,14 +232,19 @@ START-OF-SELECTION.
 *  ls_final_report-physical_state    = ls_tab-physical_state.
 
     " Now, check if there is corresponding data from ZAUTOWO_LOG
-    READ TABLE lt_zautowo_log INTO ls_zautowo_log WITH KEY sap_plant_code = ls_tab-plant_code.
+    READ TABLE lt_zautowo_log INTO ls_zautowo_log WITH KEY  customer_code = ls_tab-customer_code . "sap_plant_code = ls_tab-plant_code AND
+*    READ TABLE lt_zautowo_log INTO ls_zautowo_log WITH KEY sap_plant_code = ls_tab-plant_code and customer_code = 4100002429 .
+
     IF sy-subrc = 0.
       ls_final_report-zrecno         = ls_zautowo_log-zrecno.
-*      ls_final_report-item_id        = ls_zautowo_log-item_id.
-*      ls_final_report-sap_plant_code = ls_zautowo_log-sap_plant_code.
-*      ls_final_report-zw_status      = ls_zautowo_log-zw_status.
-*      ls_final_report-work_order_no  = ls_zautowo_log-work_order_no.
-*      ls_final_report-zwo_err_msg    = ls_zautowo_log-zwo_err_msg.
+      ls_final_report-item_id        = ls_zautowo_log-item_id.
+      "   ls_final_report-sap_plant_code = ls_zautowo_log-sap_plant_code.
+      ls_final_report-region_name    = ls_zautowo_log-region_name.
+      ls_final_report-zw_status      = ls_zautowo_log-zw_status.
+      ls_final_report-work_order_no  = ls_zautowo_log-work_order_no.
+      ls_final_report-zwo_err_msg    = ls_zautowo_log-zwo_err_msg.
+
+
     ENDIF.
 
     " Append the filled structure to the final table
@@ -256,6 +285,12 @@ START-OF-SELECTION.
   gr_column->set_medium_text( 'Request_Num' ).
   gr_column->set_short_text( 'Request' ).
 
+  gr_columns = gr_table->get_columns( ).
+  gr_column ?= gr_columns->get_column( 'ITEM_ID' ).
+  gr_column->set_long_text( 'Item_ID' ).
+  gr_column->set_medium_text( 'Item_ID' ).
+  gr_column->set_short_text( 'Item_ID' ).
+
 
   gr_columns = gr_table->get_columns( ).
   gr_column ?= gr_columns->get_column( 'PLANT_CODE' ).
@@ -274,6 +309,12 @@ START-OF-SELECTION.
   gr_column->set_long_text( 'CUSTOMER_CODE' ).
   gr_column->set_medium_text( 'CUSTOMER_CODE' ).
   gr_column->set_short_text( 'CUST_CODE' ).
+  gr_column->set_output_length( 13 ).
+
+  gr_column ?= gr_columns->get_column( 'REGION_NAME' ).
+  gr_column->set_long_text( 'Region_Name' ).
+  gr_column->set_medium_text( 'Region' ).
+  gr_column->set_short_text( 'Region' ).
   gr_column->set_output_length( 13 ).
 
   gr_column ?= gr_columns->get_column( 'CUSTOMER_NAME' ).
