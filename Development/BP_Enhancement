@@ -1,0 +1,14 @@
+*      Module  F4_ID_ENTRYDATE                                       *
+*---------------------------------------------------------------------*
+*      F4 für das Feld Eintragungsdatum                             *
+*---------------------------------------------------------------------*
+MODULE f4_id_entrydate.
+  PERFORM f4_id_date USING 'GT_BUT0ID-ENTRYDATESTR'
+                     CHANGING gt_but0id-entrydatestr.
+ENDMODULE.   
+
+
+
+  FIELD gt_but0id-entrydatestr MODULE f4_id_entrydate.  
+
+GT_BUT0ID-TYPE

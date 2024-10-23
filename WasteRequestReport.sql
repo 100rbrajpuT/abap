@@ -111,7 +111,7 @@ INSERT INTO
         PH NUMERIC(18, 3),
         CV NUMERIC(18, 2),
         CL NUMERIC(18, 2),
-        SULPHUR NUMERIC(18, 2)
+        SULPHUR NUMERIC(18, 2)    
     )
 SET
     @SQL = 'SELECT bt.PARTNER , zbp.ZWAST_TYPE,mr.MAKTX
