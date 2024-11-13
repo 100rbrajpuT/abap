@@ -5,10 +5,120 @@
 MODULE f4_id_entrydate.
   PERFORM f4_id_date USING 'GT_BUT0ID-ENTRYDATESTR'
                      CHANGING gt_but0id-entrydatestr.
-ENDMODULE.   
+ENDMODULE.  
+
+FORM F4_ID_DATE USING    P_FIELD TYPE FELD-NAME
+                CHANGING P_VALUE LIKE BUS000FLDS-BIRTHDT.
+
+*------ local data declaration ----------------------------------------
+  DATA: LC_DYNAME LIKE D020S-PROG VALUE 'SAPLBUD0',
+        LC_DYNUMB LIKE D020S-DNUM VALUE '1520',
+        LV_AKTYP  LIKE BUT000_STAT-AKTYP.
+
+*------ set mode (display resp. change) ---------------------------------
+  LV_AKTYP = BUT000_STAT-AKTYP.
+  IF BUT000_STAT-AKTYP <> GC_AKTYP_DISPLAY.
+
+*------ determine fieldstatus ------------------------------------------
+    CALL FUNCTION 'BUS_FMOD_STATUS_GET'
+      EXPORTING
+        I_FLDGR  = GC_FLDGR_IDNUMBERS
+      IMPORTING
+        E_STATUS = GV_FSTAT.
+    IF GV_FSTAT = GC_FSTAT_DISPLAY.
+      LV_AKTYP = GC_AKTYP_DISPLAY.
+    ENDIF.
+  ENDIF.
+
+*------ F4 for datefield -------------------------------------------------
+  CALL FUNCTION 'BUS_DATEFIELD_POV'
+    EXPORTING
+      I_ACTIVITY = LV_AKTYP
+      I_DYNAME   = LC_DYNAME
+      I_DYNUMB   = LC_DYNUMB
+      I_FLDNM    = P_FIELD
+      I_FLDGR    = '21'
+    CHANGING
+      C_FLDVAL   = P_VALUE.
+
+ENDFORM.                    " f4_id_date
+
+
+Screen -1520
+program -  SAPLBUD0
+
+PROCESS BEFORE OUTPUT.
+  MODULE pbo_1520.
+  LOOP AT gt_but0id WITH CONTROL tctrl_but0id CURSOR gv_id_linact.
+
+    MODULE gt_but0id_init.
+  ENDLOOP.
+PROCESS AFTER INPUT.
+  MODULE pai.
+  LOOP AT gt_but0id.
+
+    MODULE gt_but0id_modify.
+  ENDLOOP.
+
+  MODULE id_numbers_cursor_get.
+
+  MODULE gt_but0id_linact_determine.
+  MODULE gt_but0id_xmark_single.
+
+PROCESS ON VALUE-REQUEST.
+  FIELD gt_but0id-entrydatestr MODULE f4_id_entrydate.
+  FIELD gt_but0id-datefromstr MODULE f4_id_validfromdate.
+  FIELD gt_but0id-datetostr MODULE f4_id_validtodate.
+
 
 
 
   FIELD gt_but0id-entrydatestr MODULE f4_id_entrydate.  
 
 GT_BUT0ID-TYPE
+
+Table Name         VBUT0ID
+Table Category     Structure
+Field Name         TYPE
+Search Help        BUPA_IDTYPE_OR
+Data Element       BU_ID_TYPE
+*****
+Dynpro Field       GT_BUT0ID-TY
+Program Name       SAPLBUS_LOCA
+Screen Number      3000
+*************************************
+Table Name         VBUT0ID
+Table Category     Structure
+Field Name         INSTITUTE
+Data Element       BU_ID_INSTITUTE
+******
+Table Name         VBUT0ID
+Table Category     Structure
+Field Name         INSTITUTE
+Data Element       BU_ID_INSTITUTE
+*************************************
+Table Name         BU_ENTRYDATESTR
+Table Category
+Data Element       BU_ENTRYDATESTR
+*************************************
+Dynpro Field       GT_BUT0ID-DATEFROM
+Program Name       SAPLBUS_LOCATOR
+Screen Number      3000
+*******************************
+Table Name         BU_DATEFROMSTR_ID
+Table Category
+Data Element       BU_DATEFROMSTR_ID
+*************************
+
+******************************
+Res_ins: GT_BUT0ID-INSTITUTE
+Valid_frm: GT_BUT0ID-DATEFROMSTR
+Valid_to: GT_BUT0ID-DATETOSTR
+
+
+
+==> BUS_JOEL_MAIN-CHANGE_NUMBER
+
+  CALL SUBSCREEN screen_3200_search_fields_area.
+  CALL SUBSCREEN screen_3200_search_button_area.
+  CALL SUBSCREEN screen_3200_result_area.
