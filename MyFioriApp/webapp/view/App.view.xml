@@ -1,0 +1,14 @@
+<mvc:View
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    displayBlock="true">
+    <App>
+        <pages>
+            <Page title="Welcome to My Fiori App">
+                <content>
+                    <Text text="Hello, World!" />
+                </content>
+            </Page>
+        </pages>
+    </App>
+</mvc:View>

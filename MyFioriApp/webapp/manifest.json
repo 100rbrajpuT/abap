@@ -1,0 +1,23 @@
+{
+    "sap.app": {
+      "id": "myfioriapp",
+      "type": "application",
+      "i18n": "i18n/i18n.properties",
+      "applicationVersion": {
+        "version": "1.0.0"
+      }
+    },
+    "sap.ui": {
+      "technology": "UI5",
+      "icons": {
+        "icon": ""
+      }
+    },
+    "sap.ui5": {
+      "rootView": {
+        "viewName": "myfioriapp.view.App",
+        "type": "XML"
+      }
+    }
+  }
+  

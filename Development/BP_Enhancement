@@ -117,8 +117,20 @@ Valid_to: GT_BUT0ID-DATETOSTR
 
 
 
+fcode =  BUSS  {SAVE} , = SICHT = {}  
+
+gt_tbz4-fcode.
+
+
+
 ==> BUS_JOEL_MAIN-CHANGE_NUMBER
 
   CALL SUBSCREEN screen_3200_search_fields_area.
   CALL SUBSCREEN screen_3200_search_button_area.
   CALL SUBSCREEN screen_3200_result_area.
+
+
+
+  HKONT
+
+  GKONT
