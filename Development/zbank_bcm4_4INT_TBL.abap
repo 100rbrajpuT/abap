@@ -187,11 +187,25 @@ START-OF-SELECTION.
     AND batch_no IN s_batch
     AND laufd IN s_LAUF.
 
-  SELECT zbukr batch_no laufd laufi_o item_no lifnr vblnr amt_rulecu ITEM_NO
+*  SELECT zbukr batch_no laufd laufi_o item_no lifnr vblnr amt_rulecu item_no
+*    INTO TABLE it_bnkI
+*    FROM bnk_batch_item
+*    FOR ALL ENTRIES IN it_bnkh
+*    WHERE batch_no = it_bnkh-batch_no AND zbukr = it_bnkh-zbukr AND laufd = it_bnkh-laufd AND laufi_o IN s_LAUO.
+
+  IF it_bnkh IS NOT INITIAL.
+    SELECT zbukr batch_no laufd laufi_o item_no lifnr vblnr amt_rulecu item_no
     INTO TABLE it_bnkI
     FROM bnk_batch_item
     FOR ALL ENTRIES IN it_bnkh
-    WHERE batch_no = it_bnkh-batch_no AND zbukr = it_bnkh-zbukr AND laufd = it_bnkh-laufd AND laufi_o IN s_LAUO.
+    WHERE batch_no = it_bnkh-batch_no .
+*  AND zbukr = it_bnkh-zbukr
+*  AND laufd = it_bnkh-laufd
+    " AND laufi_o IN s_LAUO.
+
+  ENDIF.
+
+
 
 *                 s_ZBUKR FOR bnk_batch_header-zbukr,        "company
 *                 s_LAUO FOR bnk_batch_item-laufi_o,         "identification
@@ -264,9 +278,9 @@ START-OF-SELECTION.
     wa_header-item_cnt = wa_bnkH-item_cnt.
     wa_header-rule_id = wa_bnkH-rule_id.
 
-    READ TABLE it_bnkI INTO wa_bnki WITH KEY BATCH_NO = wa_bnkH-BATCH_NO.   "it_bnkI INTO wa_bnki.
+    READ TABLE it_bnkI INTO wa_bnki WITH KEY batch_no = wa_bnkH-batch_no.   "it_bnkI INTO wa_bnki.
     IF sy-subrc = 0.
-        wa_header-laufi = wa_bnki-laufi_o.
+      wa_header-laufi = wa_bnki-laufi_o.
     ENDIF.
 
     READ TABLE it_t001 INTO wa_t001 WITH KEY bukrs = wa_bnkH-zbukr.
@@ -382,11 +396,14 @@ START-OF-SELECTION.
   DATA: lt_processed TYPE TABLE OF lt_bill_dt, " Table to track processed entries
         ls_processed TYPE lt_bill_dt.
 
-*for transactions
+*for transactions / bill
 
   LOOP AT it_item INTO wa_item .
     LOOP AT it_acdoca INTO wa_acdoca WHERE augbl = wa_item-vblnr.
-      IF wa_acdoca-belnr NE wa_acdoca-awref.
+*      IF wa_acdoca-belnr NE wa_acdoca-awref.
+*       IF wa_acdoca-blart IN 'AB''RE''KZ' 'ZE' 'KR' .
+      IF wa_acdoca-blart = 'AB' OR wa_acdoca-blart = 'RE' OR wa_acdoca-blart = 'KZ' OR wa_acdoca-blart = 'ZE' OR wa_acdoca-blart = 'KR'.
+
         CLEAR: wa_bill.
 
         " Populate fields for the transaction
@@ -423,7 +440,7 @@ START-OF-SELECTION.
         READ TABLE lt_processed WITH KEY belnr = wa_bill-belnr TRANSPORTING NO FIELDS.
         IF sy-subrc NE 0.
           " Append to the processed table and the it_bill table
-         APPEND wa_bill TO lt_processed.
+          APPEND wa_bill TO lt_processed.
           APPEND wa_bill TO it_bill.
         ENDIF.
 
