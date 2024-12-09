@@ -8,13 +8,7 @@ define view ZVENDOR_TRAIL with parameters
     p_company  : abap.char(10),
     p_from_date: abap.dats,
     p_to_date  : abap.dats
-    /*
- as select from lfb1  as K
- left outer join lfa1 C on K.lifnr=C.lifnr
-    left outer join adrc ADR on ADR.addrnumber=C.adrnr
-    left outer join but000 M on C.lifnr=M.partner
-    left outer join  t005u t5 on t5.bland=C.regio and t5.spras='E' and t5.land1='IN' */
-    as select from lfb1 as K
+ as select from lfb1 as K
   left outer join lfa1 as C
     on K.lifnr = C.lifnr
   left outer join adrc as ADR
@@ -91,3 +85,29 @@ group by
    or abs(sum(case when A.hsl < 0 then A.hsl else 0.00 end)) <> 0 ;
  order by K.lifnr; */
 
+/*
+
+
+@AbapCatalog.sqlViewName: 'ZOPEN_BAL'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Sub Query for ZCDS_OPENING_BALANCE'
+@Metadata.ignorePropagatedAnnotations: true
+define view ZCDS_OPENING_BALANCE 
+ with parameters 
+    p_company   : abap.char(10),
+    p_from_date : abap.dats 
+     as select from  acdoca
+{
+    rbukrs                  as company_code,
+    lifnr                   as vendor,
+    sum(hsl)                as opening_balance
+}
+where rbukrs = :p_company
+  and koart = 'K' 
+  and budat < :p_from_date
+group by rbukrs, lifnr;
+
+
+*/
