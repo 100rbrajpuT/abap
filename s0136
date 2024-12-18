@@ -1,0 +1,86 @@
+@AbapCatalog.sqlViewName: 'ZCUSTRCPTINV'
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+define view ZCustomerReceiptAgainstInvoice
+  with parameters
+    @Parameter.association: 'Company' 
+    @EndUserText.label: 'Company Code'
+    @Parameter.default: '23' 
+    COMPANYCODE: abap.char(10),
+
+    @Parameter.association: 'Customer' 
+    @EndUserText.label: 'Customer Code'
+    @Parameter.default: '%' 
+    CUSTOMERCODE: abap.char(10),
+
+    @Parameter.association: 'From Date' 
+    @EndUserText.label: 'From Date'
+    @Parameter.default: '2024-01-01' 
+    FROM_DATE: abap.dats,
+
+    @Parameter.association: 'To Date' 
+    @EndUserText.label: 'To Date'
+    @Parameter.default: '2024-12-31' 
+    TO_DATE: abap.dats
+
+  as select from SAPABAP1.BSID as C
+  left join SAPABAP1.KNA1 as K on C.KUNNR = K.KUNNR
+  inner join SAPABAP1.BUT000 as N on K.MANDT = N.CLIENT and K.KUNNR = N.PARTNER
+  left join (select BUKRS, BELNR, REBZJ, BUZEI, sum((case when SHKZG = 'S' then coalesce(WRBTR, 0) else coalesce(WRBTR, 0) * -1 end)) as AMOUNT from SAPABAP1.BSID group by BUKRS, BELNR, REBZJ, BUZEI) as BL on C.BUKRS = BL.BUKRS and C.GJAHR = BL.REBZJ and C.REBZG = BL.BELNR and C.REBZZ = BL.BUZEI
+  left join (select * from SAPABAP1.BSEG where MANDT = 900 and H_BLART in ('DZ', 'DP', 'DW') and PRCTR <> '' and MWSKZ = '') as B on C.BUKRS = B.BUKRS and C.GJAHR = B.GJAHR and C.BELNR = B.BELNR
+  left join SAPABAP1.SKAT as G on B.HKONT = G.SAKNR
+  left join SAPABAP1.BKPF as I on C.BUKRS = I.BUKRS and C.REBZJ = I.GJAHR and C.REBZG = I.BELNR
+  left join SAPABAP1.T005U as T5 on T5.BLAND = K.REGIO and T5.SPRAS = 'E' and T5.LAND1 = 'IN' and T5.MANDT = 900
+  left join SAPABAP1.T001W as T on T.WERKS = left(B.PRCTR, 4)
+  left join (select KUNNR, RBUKRS, BELNR, BUDAT, BLDAT, AWREF, GJAHR, max(left(PRCTR, 4)) as PRCTR, sum(HSL) as AMOUNT from SAPABAP1.ACDOCA where BELNR not like 'B%' and KOART = 'D' group by KUNNR, RBUKRS, BUDAT, BLDAT, BELNR, AWREF, GJAHR) as MN on C.BUKRS = MN.RBUKRS and (case when C.VBELN = '' then C.REBZG else C.VBELN end) = MN.AWREF and C.KUNNR = MN.KUNNR
+  where C.MANDT = 900
+    and C.BLART in ('DZ', 'DP', 'DW')
+    and B.HKONT not in ('0000253230', '0000130932')
+    and C.BUDAT between :FROM_DATE and :TO_DATE
+    and C.BUKRS like :COMPANYCODE
+    and C.KUNNR like :CUSTOMERCODE
+
+union all
+
+select 
+    C.BUKRS as COMPANYCODE,
+    left(B.PRCTR, 4) as PLANT,
+    T.NAME1 as PLANTNAME,
+    C.BLART as DOCUMENTTYPE,
+    C.KUNNR as CUSTOMERCODE,
+    N.BPEXT as NAVCODE,
+    K.NAME1 as CUSTOMERNAME,
+    coalesce(K.STCD3, '') as CUSTOMERGSTNUMBER,
+    K.REGIO as CUSTOMERSTATECODE,
+    T5.BEZEI as CUSTOMERSTATE_NAME,
+    C.VBELN as SDDOCNO,
+    C.BELNR as DOCUMENTNO,
+    C.GJAHR as FISCALYEAR,
+    C.BUDAT as POSTINGDATE,
+    C.WRBTR as PAYMENTAMOUNT,
+    G.TXT50 as BANKNAME,
+    B.HKONT as GLACC,
+    to_char(C.BUDAT, 'DD/MM/YYYY') as CHEQUEDATE,
+    case when length(C.XBLNR) <= 6 then C.XBLNR else coalesce(left(I.BKTXT, 6), left(C.SGTXT, 6)) end as CHEQUENO,
+    B.WRBTR as CHEQUEAMOUNT,
+    C.SGTXT as REMARK,
+    coalesce(MN.BELNR, '') as INVOICENO,
+    case when C.VBELN = '' then C.REBZG else C.VBELN end as BILLINGDOCNO,
+    to_char(MN.BLDAT, 'DD/MM/YYYY') as BILLDATE,
+    coalesce(I.BLDAT, MN.BLDAT) as DOCUMENTDATE,
+    to_char(MN.BUDAT, 'DD/MM/YYYY') as INVOICEPOSTINGDATE,
+    coalesce(MN.AMOUNT, 0) as AMOUNT
+from SAPABAP1.BSAD as C
+left join SAPABAP1.KNA1 as K on C.KUNNR = K.KUNNR
+inner join SAPABAP1.BUT000 as N on K.MANDT = N.CLIENT and K.KUNNR = N.PARTNER
+left join (select * from SAPABAP1.BSEG where MANDT = 900 and H_BLART in ('DZ', 'DP', 'DW') and PRCTR <> '' and MWSKZ = '') as B on C.BUKRS = B.BUKRS and C.GJAHR = B.GJAHR and C.BELNR = B.BELNR
+left join (select KUNNR, RBUKRS, BELNR, BUDAT, BLDAT, AWREF, GJAHR, max(left(PRCTR, 4)) as PRCTR, sum(HSL) as AMOUNT from SAPABAP1.ACDOCA where BELNR not like 'B%' and KOART = 'D' group by KUNNR, RBUKRS, BUDAT, BLDAT, BELNR, AWREF, GJAHR) as MN on C.BUKRS = MN.RBUKRS and (case when C.VBELN = '' then C.REBZG else C.VBELN end) = MN.AWREF and C.KUNNR = MN.KUNNR
+left join (select * from SAPABAP1.SKAT where KTOPL = 'LGIN') as G on B.HKONT = G.SAKNR
+left join SAPABAP1.BKPF as I on C.BUKRS = I.BUKRS and C.REBZJ = I.GJAHR and C.REBZG = I.BELNR
+left join SAPABAP1.T005U as T5 on T5.BLAND = K.REGIO and T5.SPRAS = 'E' and T5.LAND1 = 'IN' and T5.MANDT = 900
+left join SAPABAP1.T001W as T on T.WERKS = left(B.PRCTR, 4)
+where C.MANDT = 900
+  and C.BLART in ('DZ', 'DP', 'DW')
+  and B.HKONT not in ('0000253230', '0000130932')
+  and C.BUDAT between :FROM_DATE and :TO_DATE
+  and C.BUKRS like :COMPANYCODE
+  and C.KUNNR like :CUSTOMERCODE
