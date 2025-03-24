@@ -1,0 +1,93 @@
+USE [SAPCONNECT]
+GO
+/****** Object:  StoredProcedure [dbo].[SAP_SD_STOCK_CHECK_H]    Script Date: 27-01-2025 10:32:00 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- [SAP_SD_STOCK_CHECK_H] '2302' 
+ALTER PROCEDURE [dbo].[SAP_SD_STOCK_CHECK_H]
+
+(
+@SiteCode varchar(10) = 'PA'
+,@SptoTable VARCHAR(100) = 'No'
+)
+
+AS
+TRUNCATE TABLE SAP_SD_STOC_CHECK_TBL
+DECLARE @SQL VARCHAR(MAX)
+
+
+SET @SQL = 
+'		
+WITH CTE as
+(
+			SELECT vb.VKORG,vb.VBELN
+					FROM SAPABAP1.VBAK as vb
+						INNER JOIN SAPABAP1.ZPARAMAST as zp on zp.ZVALUE = vb.AUART AND zp.ZTYPE = ''DOC_MANIFEST'' AND zp.ZSTATUS = ''T'' AND zp.ZSALORG = vb.VKORG
+						LEFT JOIN SAPABAP1.LIPS as ps on ps.VGBEL = vb.VBELN
+						LEFT JOIN SAPABAP1.VTTP as vt on vt.VBELN = ps.VBELN
+						LEFT JOIN SAPABAP1.VTTK as vk on vk.tknum = vt.tknum
+				WHERE 1 = 1
+				AND vb.GBSTK = ''A''
+				AND IFNULL(vb.FAKSK,'''')= ''''
+				AND IFNULL(vk.exti1 ,'''') <> ''''
+				AND vb.AUART NOT IN (''ZMAD'')
+				GROUP BY vb.VKORG, vb.VBELN
+)
+,CTE2 as
+	(
+SELECT   m.werks , SUM( m.labst ) Stock_Unrestricted , SUM( m.insme ) Stock_Quality
+            FROM SAPABAP1.zstock_material as m
+				LEFT JOIN 
+				(
+				SELECT PLANT,LOCATION FROM  SAPABAP1.zpp_location
+					WHERE STATUS = ''2''
+					GROUP BY PLANT,LOCATION
+				)k on k.PLANT = m.werks AND k.LOCATION = m.LGORT
+            WHERE 1=1
+			AND IFNULL(k.LOCATION,'''')=''''
+            AND m.mtart IN (''Z911'',''Z921'',''Z931'')
+            AND m.meins = ''MT''
+            GROUP BY m.werks
+	)
+,CTE3 as
+	(
+	SELECT ZSALORG, MAX(CASE WHEN ZTYPE = ''STOCK_RESTRICTION_QTY_VA01'' THEN ZVALUE END) as REVISE_PLANT_CAPACITY
+			,MAX(CASE WHEN ZTYPE = ''PLANT_STOCK_QTY'' THEN ZVALUE END) as ORIGINAL_PLANT_CAPACITY
+        FROM SAPABAP1.ZPARAMAST
+        WHERE ZTYPE IN ( ''STOCK_RESTRICTION_QTY_VA01'' , ''PLANT_STOCK_QTY'')
+        AND ZSTATUS = ''T''
+		GROUP BY ZSALORG
+	)
+
+SELECT x.VKORG  as PLANT_CODE, tw.NAME1 as PLANT_NAME, x.OPEN_MANIFEST_VEH_ASSIGNMENT,y.OPEN_MANIFEST_QTY_POST ,c2.Stock_Unrestricted , c2.Stock_Quality
+	, c3.REVISE_PLANT_CAPACITY , c3.ORIGINAL_PLANT_CAPACITY  FROM
+	(
+	SELECT c.VKORG, sum( vp.KWMENG ) as OPEN_MANIFEST_VEH_ASSIGNMENT FROM CTE as c
+		INNER JOIN SAPABAP1.VBAP as vp on vp.VBELN = c.VBELN AND IFNULL(vp.FAKSP,'''') = '''' 
+	GROUP BY c.VKORG
+	)x
+	LEFT JOIN 
+		(
+		SELECT c.VKORG, sum( m.STOCK_QTY ) as OPEN_MANIFEST_QTY_POST  FROM CTE as c
+			INNER JOIN SAPABAP1.MATDOC  as m on m.ebeln = c.vbeln
+		GROUP BY c.VKORG
+		)y on y.VKORG = x.VKORG
+
+		LEFT JOIN CTE2 as c2 on c2.werks = x.VKORG
+		LEFT JOIN CTE3 as c3 on c3.ZSALORG = x.VKORG
+		LEFT JOIN SAPABAP1.T001W as tw on tw.WERKS = x.VKORG and tw.MANDT = 900
+
+'
+PRINT ((@SQL))
+
+IF @SptoTable <> 'Yes'
+	BEGIN
+EXEC(@SQL) AT SAP_GHP
+END
+
+IF @SptoTable = 'Yes'
+	BEGIN
+	INSERT INTO SAP_SD_STOC_CHECK_TBL EXEC(@SQL) AT SAP_GHP
+	END

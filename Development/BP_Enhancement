@@ -121,7 +121,9 @@ fcode =  BUSS  {SAVE} , = SICHT = {}
 
 gt_tbz4-fcode.
 
-
+**SAPLBUPA_DIALOG_JOEL-------11-02-2025
+SAPLBUPA_DIALOG_JOEL - POH 
+LBUPA_DIALOG_JOELI01 - POH
 
 ==> BUS_JOEL_MAIN-CHANGE_NUMBER
 
@@ -134,3 +136,80 @@ gt_tbz4-fcode.
   HKONT
 
   GKONT
+
+
+
+  IV_IDENTIFICATIONTYPE =  BUP005
+
+
+  bup520_pai ==> event
+
+
+    method IF_EX_BUPA_IDENT_CHECK~CHECK.
+
+  "IF iv_x_save = 'X'.
+
+    " Validate Institute field
+    IF is_identification-idinstitute IS INITIAL.
+      MESSAGE 'Institute field should not be empty.' TYPE 'I'.
+    ENDIF.
+
+ " ENDIF.
+
+
+**  IF IV_ACTIVITY = 02 ."iv_x_save = 'X'.
+**
+**  " Access field directly if IS_IDENTIFICATION is a structure
+**  IF is_identification-idinstitute IS INITIAL.
+**    MESSAGE 'Save event in Identification tab triggered' TYPE 'w'.
+***    DATA(ls_return) = VALUE bapiret2(
+***      type   = 'E'
+***      id     = 'ZBP'
+***      number = '001'
+***      message = 'Identification Number cannot be empty during save.'
+***    ).
+***    APPEND ls_return TO et_return.
+**  ENDIF.
+**
+**ENDIF.
+
+
+  endmethod.
+
+
+
+
+
+  method IF_EX_BUPA_IDENT_CHECK~CHECK.
+
+*  "IF iv_x_save = 'X'.
+*
+*    " Validate Institute field
+*    IF is_identification-idinstitute IS INITIAL.
+*      MESSAGE 'Institute field should not be empty.' TYPE 'I'.
+*    ENDIF.
+
+ " ENDIF.
+
+
+**  IF IV_ACTIVITY = 02 ."iv_x_save = 'X'.
+**
+**  " Access field directly if IS_IDENTIFICATION is a structure
+**  IF is_identification-idinstitute IS INITIAL.
+**    MESSAGE 'Save event in Identification tab triggered' TYPE 'w'.
+***    DATA(ls_return) = VALUE bapiret2(
+***      type   = 'E'
+***      id     = 'ZBP'
+***      number = '001'
+***      message = 'Identification Number cannot be empty during save.'
+***    ).
+***    APPEND ls_return TO et_return.
+**  ENDIF.
+**
+**ENDIF.
+
+
+  endmethod.
+
+
+  000000000020300613   - created material-fbl1n

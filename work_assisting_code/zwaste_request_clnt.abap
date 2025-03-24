@@ -475,3 +475,47 @@ START-OF-SELECTION.
 *  gr_column->set_output_length( 14 ).
 
   gr_table->display( ).
+
+*******************************************************
+added some new fields
+@AbapCatalog.sqlViewName: 'ZCDS_MANIFEST'
+@AbapCatalog.compiler.compareFilter: true
+@AbapCatalog.preserveKey: true
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'CDS Subquery for Client waste req RPT'
+@Metadata.ignorePropagatedAnnotations: true
+define view ZCDS_Waste_subQ2 as select from vbak as vb
+inner join tvakt as akt on vb.auart = akt.auart and akt.spras = 'E' and akt.bezei like '%Mani%'
+  left outer join lips as lp on lp.vgbel = vb.vbeln
+  left outer join vttp as vt on vt.vbeln = lp.vbeln
+   left  outer join vttk as vk on vk.tknum = vt.tknum
+   left outer join but000 as but on but.partner = vk.tdlnr
+   left outer join zwastein as z on z.vbeln = vb.vbeln
+   left outer join zimanifestbill as bl  on bl.manifest_no = vb.vbeln 
+        and bl.salesorganization = vb.vkorg
+    left outer join ZCDS_BSAD_Group as gg
+    on gg.vbeln = bl.billingdocument        
+     
+{
+
+     key vb.vbeln as manifest ,
+      vb.vkorg as plant_code ,
+      vb.bstnk as itemid ,
+      vt.tknum as shipment_no , 
+      vk.aedat as veh_ass_date ,   --added 18-02-25
+      vk.exti1 as vehicle_no ,
+      vk.tdlnr as transporter_no ,
+      but.name_org1 as transporter_name ,
+      z.zgtrdate as site_inward_date ,
+      --bl.billlingdocument as invoice_no,
+      bl.billingdocument as BILLINGDOCUMENT,
+      bl.billingquantity as billingquantity  ,
+      bl.billingdocumentdate as BILLINGDOCUMENTDATE , --added 18-02-25
+      bl.invoicecreationdate as INVOICECREATIONDATE ,  --added 18-02-25
+      case
+         when gg.vbeln is null and bl.billingdocument is not null then 'Partial'
+         else 'Full'
+     end as payment_type
+}
+
+
