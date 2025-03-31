@@ -1,90 +1,236 @@
-@AbapCatalog.sqlViewName: 'ZPRODUCTION'
-@AbapCatalog.compiler.compareFilter: true
-@AbapCatalog.preserveKey: true
-@AccessControl.authorizationCheck: #NOT_REQUIRED
-@EndUserText.label: 'CDS View for Production Order Report'
-@Metadata.ignorePropagatedAnnotations: true
-define view ZPP_FG_Production_Order 
- with parameters
-    p_plant  : werks_d,   // Plant parameter
-    p_matnr  : matnr_d     // Material parameter
-as select from aufm as A
-  left join afpo as P on A.mandt = P.mandt and A.werks = P.dwerk and A.aufnr = P.aufnr
-  left join afko as KO on P.mandt = KO.mandt and P.aufnr = KO.aufnr
-  inner join afvc as AF on AF.mandt = KO.mandt and KO.aufpl = AF.aufpl
-  inner join crhd as CH on AF.mandt = CH.mandt and AF.arbid = CH.objid
-  inner join crtx as CR on CR.mandt = CR.mandt and CR.objid = CH.objid
-  left join (select * from mcha where lifnr <> '') as MC on A.mandt = P.mandt and A.charg = MC.charg and A.werks = MC.werks
-  left join (select * from ausp where atinn = '0000000909') as AU on MC.mandt = AU.mandt and MC.cuobj_bm = AU.objek
-  left join (select * from qpct where katalogart = '1' and sprache = 'E') as QP on QP.mandt = AU.mandt and QP.codegruppe = left(AU.atwrt, 7) and QP.code = right(AU.atwrt, 2)
-  left join (select row_number() over (partition by werks, aufnr order by werks, aufnr, isdd desc) as srno, * from afru where stokz = '' and stzhl = '00000000') as AFA on AFA.mandt = A.mandt and AFA.werks = A.werks and AFA.aufnr = A.aufnr and AFA.srno = 1
-  left join zibatchcharinfo as Z on Z.mandt = A.mandt and Z.werks = A.werks and Z.matnr = A.matnr and Z.charg = A.charg and A.bwart in ('101', '531')
-  left join qals as QA on A.aufnr = QA.aufnr
-  left join qave as QE on QA.prueflos = QE.prueflos
-  left join plpo as L on KO.plnnr = L.plnnr and KO.zaehl = L.zaehl
-{
-  A.werks as plant,
-  max(P.matnr) as productname,
-  A.aufnr as productionorder,
-  max(CH.arbpl) as workcentercode,
-  max(CR.ktext) as workcentername,
-  to_char(A.bldat, 'DD/MM/YYYY') as postingdate,
-  sum(case when A.charg like 'W%' and substring(A.matnr, 13, 6) like '%SD%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as solid,
-  sum(case when A.charg like 'W%' and substring(A.matnr, 13, 6) like '%SS%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as semisolid,
-  sum(case when A.charg like 'W%' and substring(A.matnr, 13, 6) like '%LQ%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as liquid,
-  sum(case when A.charg like 'W%' and substring(A.matnr, 13, 6) like '%AQ%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as aqs,
-  sum(case when A.matnr like '000000%' and A.bwart in ('261', '262') and A.erfme = 'MT' then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as binder,
-  max(Z.charg) as batch,
-  max(Z.physicalstate) as physicalstate,
-  max(Z.texture) as texture,
-  max(Z.color) as color,
-  max(Z.odour) as odour,
-  max(Z.ph) as ph,
-  max(Z.gcv) as gcv,
-  max(Z.loi) as loi,
-  max(Z.cl) as cl,
-  max(Z.sulphur) as sulphur,
-  max(Z.moi) as moi,
-  max(Z.ash) as ash,
-  max(Z.pkgmode) as pkgmode,
-  max(Z.contno) as contno,
-  max(Z.compatibilitygroup) as compatibilitygroup,
-  max(Z.safetycategory) as safetycategory,
-  max(Z.processcategory) as processcategory,
-  max(Z.processroute) as processroute,
-  max(Z.preprocessroute) as preprocessroute,
-  to_char(AFA.isdd, 'DD/MM/YYYY') || ' ' || to_time(AFA.isdz, 'HH24MISS') as startdate,
-  to_char(AFA.isdd, 'YYYY-MM-DD') || ' ' || to_time(AFA.isdz, 'HH24MISS') as startdate1,
-  to_char(AFA.iedd, 'DD/MM/YYYY') || ' ' || to_time(AFA.iedz, 'HH24MISS') as finishdate,
-  to_char(AFA.iedd, 'YYYY-MM-DD') || ' ' || to_time(AFA.iedz, 'HH24MISS') as finishdate1,
-  cast(sum(case when A.charg like 'W%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as waste,
-  cast(sum(case when A.charg like 'I%' and A.matnr not like 'RESIDUE%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as intermediate,
-  cast(sum(case when A.charg like 'F%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as fgreconsumed,
-  cast(sum(case when A.matnr like 'RESIDUE%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as residueconsumed,
-  cast(sum(case when A.matnr like '000000%' and A.bwart in ('261', '262') and A.erfme = 'MT' then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as binders,
-  cast(sum(case when A.charg like 'W%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.charg like 'I%' and A.matnr not like 'RESIDUE%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.charg like 'F%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.matnr like 'RESIDUE%' and A.bwart in ('261', '262') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.matnr like '000000%' and A.bwart in ('261', '262') and A.erfme = 'MT' then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as totalinput,
-  cast(sum(case when A.bwart in ('101', '102') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as fgoutput,
-  cast(sum(case when A.matnr like 'RESIDUE%' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as residuereceipt,
-  cast(sum(case when A.bwart in ('101', '102') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.matnr like 'RESIDUE%' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as totaloutput,
-  cast(sum(case when A.matnr like '000000%' and A.bwart in ('261') and A.meins = 'EA' then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as jumbobag,
-  cast(sum(case when A.matnr not like 'BG%' and A.meins = 'EA' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as packingscrapdrums,
-  cast(sum(case when A.matnr like 'BG%' and A.meins = 'EA' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 3)) as packingscrapbags,
-  cast(sum(case when A.matnr not like 'BG%' and A.meins = 'EA' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) +
-       sum(case when A.matnr like 'BG%' and A.meins = 'EA' and A.bwart in ('531', '532') then case when A.shkzg = 'S' then A.erfmg else A.erfmg * -1 end else 0 end) as numeric(18, 2)) as totalscrap,
-  max(QP.kurztext) as materialeasiness,
-  QE.vcode,
-  case when QE.vcode = 'A1' then 'ACCEPTED'
-       when QE.vcode = 'A2' then 'ACCEPTED WITH DEVIATION'
-       when QE.vcode = 'A3' then 'ACCEPTED PARTIAL QUANTITY'
-       when QE.vcode = 'R' then 'REJECTED'
-       else ' ' end as code_description
-}
-where ( A.bwart in ('261', '262', '531', '532', '101', '102') )
-  and ( :p_plant is null or A.werks = :p_plant ) -- Fetch all data if p_plant is null
-  and ( :p_matnr is null or P.matnr = :p_matnr ) -- Fetch all data if p_matnr is null
-group by A.werks, A.aufnr, A.bldat, QE.vcode, A.matnr
+USE [SAPCONNECT]
+GO
+/****** Object:  StoredProcedure [dbo].[SAP_PP_FG_PRODUCTION_ORDER]    Script Date: 20-03-2025 09:37:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SAP_PP_FG_PRODUCTION_ORDER]
+(
+@PLANT AS VARCHAR(MAX)=''
+,@FROM_DATE DATETIME
+,@TO_DATE DATETIME
+,@MATTYPE AS VARCHAR(50)=''
+,@MATNR AS VARCHAR(MAX)=''
+)
+
+AS
+
+--[SAP_PP_FG_PRODUCTION_ORDER] '2304','20230401','20231231','SD_AFR'
+
+IF @PLANT IN ('ALL' ,'','%','''')
+	BEGIN
+		SET @PLANT=NULL
+	END	
+ELSE 
+	SELECT @PLANT = ' AND ''' + @PLANT + ''' LIKE ''%'' || NULLIF(A.WERKS ,'''') || ''%'' '
+
+IF @MATNR IN ('ALL' ,'','%','''')
+	BEGIN
+		SET @MATNR=NULL
+	END	
+ELSE 
+	SELECT @MATNR = ' AND ''' + @MATNR + ''' LIKE ''%'' || NULLIF(P.MATNR ,'''') || ''%'' '
+
+
+
+
+
+DECLARE @SQL AS VARCHAR (MAX)
+SELECT @SQL=
+'
+SELECT 
+	 K.PLANT
+	,K.PRODUCTNAME PRODUCT_NAME
+	,K.PRODUCTIONORDER PRODUCTION_ORDER
+	,K.WORKCENTERCODE WORK_CENTER
+	,K.WORKCENTERNAME WORK_CENTERNAME
+	,IFNULL(K.MATERIALEASINESS,'''')MATERIAL_EASINESS
+	,K.POSTINGDATE POSTING_DATE 
+	,K.STARTDATE START_DATE
+	,K.FINISHDATE FINISH_DATE
+	,(FLOOR(SECONDS_BETWEEN (K.STARTDATE1,K.FINISHDATE1)/3600)||'':''||
+	 FLOOR(SECONDS_BETWEEN (K.STARTDATE1,K.FINISHDATE1)/60)-FLOOR(SECONDS_BETWEEN (K.STARTDATE1,K.FINISHDATE1)/	3600)*60
+	||'':''||SECONDS_BETWEEN (K.STARTDATE1,K.FINISHDATE1)-FLOOR(SECONDS_BETWEEN (K.STARTDATE1,K.FINISHDATE1)/60)*60)DIFF_TIME
+	,K.SOLID
+	,K.SEMISOLID
+	,K.LIQUID
+	,K.AQS
+	,K.BINDER
+	,K.WASTE
+	,K.INTERMEDIATE
+	,K.FGRECONSUMED FG_RECONSUMED
+	,K.RESIDUECONSUMED RESIDUE_CONSUMED 
+	,K.BINDERS
+	,K.TOTALINPUT TOTAL_INPUT
+	,K.FGOUTPUT  FG_OUTPUT
+	,K.RESIDUERECEIPT RESIDUE_RECEIPT 
+	,K.TOTALOUTPUT TOTAL_OUTPUT
+	,K.JUMBOBAG
+	,K.PACKINGSCRAPDRUMS PACKING_SCRAP_DRUMS 
+	,K.PACKINGSCRAPBAGS PACKING_SCRAP_BAGS 
+	,K.TOTALSCRAP TOTAL_SCRAP
+	,CAST((CASE WHEN (K.FGOUTPUT-K.BINDERS)=0 THEN 0 ELSE K.BINDERS/(K.FGOUTPUT-K.BINDERS) END)*100 AS DECIMAL(10,3)) ||''''||''%''  BINDERS_PER
+	,CAST((CASE WHEN K.TOTALOUTPUT=0 THEN 0 ELSE K.JUMBOBAG/K.TOTALOUTPUT END)AS DECIMAL(10,3)) JUMBO_BAG_MT
+	,CAST((CASE WHEN (K.TOTALINPUT-K.BINDERS)=0 THEN 0 ELSE K.TOTALSCRAP/(K.TOTALINPUT-K.BINDERS) END)AS DECIMAL(10,3))||''''||''%'' SCRAP_PER_ON_WASTE
+	,CAST((CASE WHEN (K.TOTALINPUT-K.BINDERS)=0 THEN 0 ELSE ((K.TOTALINPUT-K.TOTALOUTPUT-K.TOTALSCRAP)/(K.TOTALINPUT-K.BINDERS)) END)AS DECIMAL(10,3))||''''||''%'' MOISTURE_LOSS_ON_WASTE
+	,CAST((CASE WHEN K.TOTALINPUT=0 THEN 0  ELSE K.TOTALOUTPUT/K.TOTALINPUT  END)*100 AS DECIMAL(10,3))||''''||''%'' OUTPUT_INPUT_RATIO
+	,K.BATCH
+	,K.PHYSICALSTATE
+	,K.TEXTURE
+	,K.COLOR
+	,K.ODOUR
+	,K.PH
+	,K.GCV
+	,K.LOI
+	,K.CL
+	,K.SULPHUR
+	,K.MOI
+	,K.ASH
+	,K.PKGMODE
+	,K.CONTNO
+	,K.COMPATIBILITYGROUP
+	,K.SAFETYCATEGORY
+	,K.PROCESSCATEGORY
+	,K.PROCESSROUTE
+	,K.PREPROCESSROUTE
+	,K.VCODE  
+	,K.CODE_DESCRIPTION
+    
+ FROM 
+(
+SELECT
+
+	 ROW_NUMBER() OVER (PARTITION BY A.WERKS,A.AUFNR ORDER BY A.WERKS,A.AUFNR,A.BLDAT DESC)SRNO
+
+	 ,A.WERKS PLANT	 
+
+	 ,MAX(P.MATNR)PRODUCTNAME
+
+	,A.AUFNR PRODUCTIONORDER
+
+	,MAX(CH.ARBPL) WORKCENTERCODE
+
+	,MAX(CR.KTEXT) AS WORKCENTERNAME
+
+	,TO_CHAR(A.BLDAT,''DD/MM/YYYY'') POSTINGDATE
+
+	,SUM((Case when A.CHARG LIKE ''W%'' and SUBSTRING(A.MATNR,13,6) like ''%SD%'' and A.BWART IN (''261'',''262'') then (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END))SOLID
+
+	,SUM((Case when A.CHARG LIKE ''W%'' and SUBSTRING(A.MATNR,13,6) like ''%SS%'' and A.BWART IN (''261'',''262'') then (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END))SEMISOLID
+
+	,SUM((Case when A.CHARG LIKE ''W%'' and SUBSTRING(A.MATNR,13,6) like ''%LQ%'' and A.BWART IN (''261'',''262'') then (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END))LIQUID
+
+	,SUM((Case when A.CHARG LIKE ''W%'' and SUBSTRING(A.MATNR,13,6) like ''%AQ%'' and A.BWART IN (''261'',''262'') then (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END))AQS
+
+	,SUM((Case when A.MATNR like ''000000%'' and A.BWART IN (''261'',''262'') AND A.ERFME=''MT'' THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end) ELSE 0 END))BINDER
+	,Max(Z.CHARG) Batch
+	,Max(Z.PHYSICALSTATE) PHYSICALSTATE
+	,Max(Z.TEXTURE) TEXTURE
+	,Max(Z.COLOR) COLOR
+	,Max(Z.ODOUR) ODOUR
+	,Max(Z.PH) PH
+	,Max(Z.GCV) GCV
+	,Max(Z.LOI) LOI
+	,Max(Z.CL) CL
+	,Max(Z.SULPHUR) SULPHUR
+	,Max(Z.MOI) MOI
+	,Max(Z.ASH) ASH
+	,Max(Z.PKGMODE) PKGMODE
+	,Max(Z.CONTNO) CONTNO
+	,Max(Z.COMPATIBILITYGROUP) COMPATIBILITYGROUP
+	,Max(Z.SAFETYCATEGORY) SAFETYCATEGORY
+	,Max(Z.PROCESSCATEGORY) PROCESSCATEGORY
+	,Max(Z.PROCESSROUTE) PROCESSROUTE
+	,Max(Z.PREPROCESSROUTE) PREPROCESSROUTE
+	
+
+
+	,TO_CHAR(AFA.ISDD,''DD/MM/YYYY'')||'' ''||TO_TIME(ISDZ,''HH24MISS'') STARTDATE
+
+	,TO_CHAR(AFA.ISDD,''YYYY-MM-DD'')||'' ''||TO_TIME(ISDZ,''HH24MISS'') STARTDATE1
+
+	,TO_CHAR(AFA.IEDD,''DD/MM/YYYY'')||'' ''||TO_TIME(IEDZ,''HH24MISS'') FINISHDATE
+
+	,TO_CHAR(AFA.IEDD,''YYYY-MM-DD'')||'' ''||TO_TIME(IEDZ,''HH24MISS'') FINISHDATE1
+
+	,CAST(SUM(CASE WHEN A.CHARG LIKE ''W%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))WASTE
+
+	,CAST(SUM(CASE WHEN A.CHARG LIKE ''I%'' AND A.MATNR NOT LIKE ''RESIDUE%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))INTERMEDIATE
+
+	,CAST(SUM(CASE WHEN A.CHARG LIKE ''F%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))FGRECONSUMED
+
+	,CAST(SUM(CASE WHEN A.MATNR LIKE ''RESIDUE%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))RESIDUECONSUMED
+
+	,CAST((SUM(CASE WHEN A.MATNR LIKE ''000000%'' AND A.BWART IN (''261'',''262'') AND A.ERFME=''MT'' THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)) AS NUMERIC(18,3))BINDERS
+
+	,CAST((SUM(CASE WHEN A.CHARG LIKE ''W%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)+
+	 SUM(CASE WHEN A.CHARG LIKE ''I%'' AND A.MATNR NOT LIKE ''RESIDUE%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)+
+	 SUM(CASE WHEN A.CHARG LIKE ''F%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)+
+	 SUM(CASE WHEN A.MATNR LIKE ''RESIDUE%'' AND A.BWART IN (''261'',''262'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)+
+	 SUM(CASE WHEN A.MATNR LIKE ''000000%'' AND A.BWART IN (''261'',''262'') AND A.ERFME=''MT'' THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)) AS NUMERIC(18,3))TOTALINPUT
+
+	,CAST(SUM(CASE WHEN A.BWART IN (''101'',''102'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))FGOUTPUT
+
+	,CAST(SUM(CASE WHEN A.MATNR LIKE ''RESIDUE%'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))RESIDUERECEIPT
+
+	,CAST((SUM(CASE WHEN A.BWART IN (''101'',''102'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)+
+	  SUM(CASE WHEN A.MATNR LIKE ''RESIDUE%'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END))AS NUMERIC(18,3))TOTALOUTPUT
+
+	,CAST(SUM(CASE WHEN A.MATNR LIKE ''000000%'' AND A.BWART IN (''261'') AND A.MEINS=''EA'' THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))JUMBOBAG
+
+	,CAST(SUM(CASE WHEN A.MATNR NOT LIKE ''BG%'' AND A.MEINS=''EA'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))PACKINGSCRAPDRUMS
+
+	,CAST(SUM(CASE WHEN A.MATNR LIKE ''BG%'' AND A.MEINS=''EA'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))PACKINGSCRAPBAGS
+
+	,(CAST(SUM(CASE WHEN A.MATNR NOT LIKE ''BG%'' AND A.MEINS=''EA'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,3))+
+	CAST(SUM(CASE WHEN A.MATNR LIKE ''BG%'' AND A.MEINS=''EA'' AND A.BWART IN (''531'',''532'') THEN (Case when A.SHKZG=''S'' then A.ERFMG else A.ERFMG*-1 end)  ELSE 0 END)AS NUMERIC(18,2)))TOTALSCRAP
+	,MAX(QP.KURZTEXT) MATERIALEASINESS
+	,QE.VCODE
+	,(CASE WHEN QE.VCODE = ''A1'' THEN ''ACCEPTED'' 
+	       WHEN QE.VCODE = ''A2'' THEN ''ACCEPTED WITH DEVIATION''  
+		   WHEN QE.VCODE = ''A3'' THEN ''ACCEPETD PARTIAL QUANTITY'' 
+		   WHEN QE.VCODE = ''R''  THEN ''REJECTED'' ELSE '' '' END)  AS CODE_DESCRIPTION
+	
+    
+    
+FROM SAPABAP1.AUFM A
+	LEFT JOIN SAPABAP1.AFPO P ON A.MANDT=P.MANDT AND A.WERKS=P.DWERK AND A.AUFNR=P.AUFNR
+	LEFT JOIN SAPABAP1.AFKO KO ON P.MANDT=KO.MANDT AND P.AUFNR=KO.AUFNR
+	INNER JOIN SAPABAP1.AFVC AF ON AF.MANDT=KO.MANDT AND KO.AUFPL = AF.AUFPL
+	INNER JOIN SAPABAP1.CRHD CH ON AF.MANDT=CH.MANDT AND AF.ARBID = CH.OBJID
+	INNER JOIN SAPABAP1.CRTX CR ON CR.MANDT=CR.MANDT AND CR.OBJID = CH.OBJID
+	LEFT JOIN (SELECT * FROM SAPABAP1.MCHA WHERE LIFNR<>'''') MC ON A.MANDT=P.MANDT AND A.CHARG=MC.CHARG AND A.WERKS=MC.WERKS
+	LEFT JOIN (SELECT * FROM SAPABAP1.AUSP WHERE ATINN=''0000000909'') AU ON MC.MANDT=AU.MANDT AND MC.CUOBJ_BM=AU.OBJEK
+	LEFT JOIN (SELECT * FROM SAPABAP1.QPCT WHERE KATALOGART=''1'' and SPRACHE=''E'')QP on QP.MANDT=AU.MANDT and QP.CODEGRUPPE=Left(AU.ATWRT,7) and QP.CODE=RIGHT(AU.ATWRT,2)
+	LEFT JOIN (SELECT ROW_NUMBER() OVER (PARTITION BY WERKS,AUFNR ORDER BY WERKS,AUFNR,ISDD DESC)Srno,* FROM SAPABAP1.AFRU WHERE  STOKZ='''' and STZHL=''00000000'') AFA ON AFA.MANDT=A.MANDT AND AFA.WERKS=A.WERKS AND AFA.AUFNR=A.AUFNR AND AFA.SRNO=1
+	LEFT JOIN SAPABAP1.ZIBATCHCHARINFO Z on Z.MANDT=A.MANDT AND Z.WERKS=A.WERKS and Z.MATNR=A.MATNR and Z.CHARG=A.CHARG and A.BWART IN (''101'',''531'')	
+	LEFT JOIN SAPABAP1.QALS QA ON A.AUFNR=QA.AUFNR
+	LEFT JOIN SAPABAP1.QAVE QE ON QA.PRUEFLOS=QE.PRUEFLOS
+	LEFT JOIN SAPABAP1.PLPO L ON KO.PLNNR= L.PLNNR AND KO.ZAEHL=L.ZAEHL	
+	--LEFT JOIN SAPABAP1.AFRU R ON R.AUFNR= KO.AUFNR 
+	
+	
+	  WHERE A.BWART IN (''261'',''262'',''531'',''532'',''101'',''102'')
+	    ' + ISNULL(@PLANT, ' ') + '
+		AND A.BLDAT BETWEEN '''+CONVERT(VARCHAR(10),@FROM_DATE,112)+'''  AND '''+CONVERT(VARCHAR(10),@TO_DATE,112)+'''
+		' + ISNULL(@MATNR, ' ') + ' 
+  
+ GROUP BY 
+	 A.WERKS
+	,A.AUFNR
+	,A.BLDAT
+	,AFA.ISDD
+	,AFA.IEDD
+	,AFA.ISDZ
+	,AFA.IEDZ
+	,QE.VCODE
+)K where K.SRNO=''1''
+ORDER BY K.PLANT,K.PRODUCTIONORDER,K.POSTINGDATE	
+'
+PRINT (@SQL)
+EXEC (@SQL) AT SAP_GHP
+
+
+
+
