@@ -210,9 +210,9 @@ FROM SAPABAP1.AUFM A
 	LEFT JOIN SAPABAP1.PLPO L ON KO.PLNNR= L.PLNNR AND KO.ZAEHL=L.ZAEHL	
 	--LEFT JOIN SAPABAP1.AFRU R ON R.AUFNR= KO.AUFNR 
 	
-	
+	 
 	  WHERE A.BWART IN (''261'',''262'',''531'',''532'',''101'',''102'')
-	    ' + ISNULL(@PLANT, ' ') + '
+	    ' + ISNULL(@PLANT, ' ') + '`
 		AND A.BLDAT BETWEEN '''+CONVERT(VARCHAR(10),@FROM_DATE,112)+'''  AND '''+CONVERT(VARCHAR(10),@TO_DATE,112)+'''
 		' + ISNULL(@MATNR, ' ') + ' 
   
@@ -234,3 +234,47 @@ EXEC (@SQL) AT SAP_GHP
 
 
 
+************************************
+  method IF_EX_ME_PROCESS_REQ_CUST~PROCESS_ITEM.
+
+       DATA: lv_werks TYPE werks_d,
+        lv_bsart TYPE bsart.
+
+  " Get plant and document type from IM_ITEM
+  lv_werks = im_item->get_data( ).
+  lv_bsart = im_item->get_data( ).
+
+*  lv_werks = im_item->get_werk( ).
+*  lv_bsart = im_item->get_bsart( ).
+
+  " Check if plant is 1201 and document type is 'ZSRV'
+  IF lv_werks = '1201' AND lv_bsart = 'ZSRV'.
+    " Raise error message to prevent creation/modification
+    MESSAGE 'Document type ZSRV is not allowed for plant 1201' TYPE 'E'.
+  ENDIF.
+
+  endmethod.
+
+
+  Z_SS_PR
+
+
+
+      BREAK-POINT 'ABAP' .
+       DATA: lv_werks TYPE werks_d,
+        lv_bsart TYPE bsart.
+
+  " Get plant and document type from IM_ITEM
+  lv_werks = im_item->get_data( ).
+  lv_bsart = im_item->get_data( ).
+
+*  lv_werks = im_item->get_werk( ).
+*  lv_bsart = im_item->get_bsart( ).
+
+  " Check if plant is 1201 and document type is 'ZSRV'
+  IF lv_werks = '1201' AND lv_bsart = 'ZSRV'.
+    " Raise error message to prevent creation/modification
+    MESSAGE 'Document type ZSRV is not allowed for plant 1201' TYPE 'E'.
+  ENDIF.
+
+  ZCL_IM__SS_PR
