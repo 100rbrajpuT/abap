@@ -80,3 +80,27 @@ ENDIF.
 LOOP AT LT_RESULT ASSIGNING FIELD-SYMBOL(<FS>).
   WRITE: / <FS>-emp_id, <FS>-emp_name . " <FS>-MATNR, <FS>-CHARG, <FS>-LIFNR , <FS>-VCODE, <FS>-CODE_DESCRIPTION.
 ENDLOOP.
+
+
+
+
+*************************
+inspection lot - Inspection lot 1204 890000087860 was created
+
+Inspection lot 1204 890000087862 was created
+
+
+Inspection lot 1204 890000087863 was created
+
+
+*************************
+CALL FUNCTION 'CO_TA_TCOKT_READ'
+      EXPORTING
+        autyp    = t490-autyp
+      IMPORTING
+        struct   = tcokt
+      EXCEPTIONS
+        no_entry = 01.
+    IF sy-subrc NE 0.
+      MESSAGE e758.
+    ENDIF.
